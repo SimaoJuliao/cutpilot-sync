@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Charcoal Studio palette ─────────────────────────────────────────────
+       Deep blue-charcoal (like DaVinci Resolve / Premiere) rather than pure
+       black. The key fix: muted-foreground up to 62% so every label is
+       legible, borders visible at 22% so the layout has real structure.    */
+
+    --background:          220 12% 10%;   /* #161A22 — deep blue-charcoal   */
+    --foreground:            0  0% 95%;   /* #F2F2F2 — crisp near-white     */
+
+    --card:                220 12% 14%;   /* slightly elevated panels        */
+    --card-foreground:       0  0% 95%;
+
+    --primary:              24 94% 56%;   /* #F97B24 — warm amber orange     */
+    --primary-foreground:    0  0%  5%;
+
+    --muted:               220 12% 16%;
+    --muted-foreground:    220  6% 62%;   /* was 38% — the main readability fix */
+
+    --border:              220 12% 22%;   /* was 11% — 2× more visible       */
+    --accent:               24 94% 56%;
+    --accent-foreground:     0  0%  5%;
+
+    --destructive:           0 72% 62%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success:             145 52% 50%;
+    --success-foreground:    0  0%  5%;
+
+    --radius:              0.2rem;
+  }
+}
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * { border-color: hsl(var(--border)); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar       { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+
+  button {
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+  }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Focus ring — visible only for keyboard navigation, not mouse clicks */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 3px;
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+/* ─── Keyframes ────────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0px hsl(24 94% 56% / 0)); }
+  50%       { filter: drop-shadow(0 0 10px hsl(24 94% 56% / 0.45)); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ─── Utility classes ───────────────────────────────────────────────────────── */
+
+.font-display {
+  font-family: 'Bebas Neue', 'Impact', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease both;
+}
+
+.animate-glow {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Staggered delays for onboarding */
+.delay-100 { animation-delay: 0.10s; }
+.delay-200 { animation-delay: 0.20s; }
+.delay-300 { animation-delay: 0.32s; }
+.delay-400 { animation-delay: 0.46s; }
+.delay-500 { animation-delay: 0.62s; }
+.delay-600 { animation-delay: 0.80s; }

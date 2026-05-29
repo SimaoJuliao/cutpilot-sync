@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "resolveJsonModule": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*":            ["./src/renderer/src/*"],
+      "@components":    ["./src/renderer/src/components"],
+      "@components/*":  ["./src/renderer/src/components/*"],
+      "@hooks":         ["./src/renderer/src/hooks"],
+      "@hooks/*":       ["./src/renderer/src/hooks/*"],
+      "@lib":           ["./src/renderer/src/lib"],
+      "@lib/*":         ["./src/renderer/src/lib/*"],
+      "@i18n":          ["./src/renderer/src/i18n"],
+      "@i18n/*":        ["./src/renderer/src/i18n/*"]
+    }
+  },
+  "include": [
+    "src/renderer/src/**/*.ts",
+    "src/renderer/src/**/*.tsx"
+  ]
+}
