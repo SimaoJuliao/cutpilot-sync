@@ -4,13 +4,17 @@ import { dirname, basename } from '@lib'
 
 export type ProcessPhase = 'transcribe' | 'analyse' | 'export' | 'done' | 'error'
 
+import { strings } from '@i18n'
+
+const tp = strings.stepProcess
+
 // Human-friendly messages — no mention of ElevenLabs or Claude
 const PHASE_MSG: Record<ProcessPhase, string> = {
-  transcribe: 'A analisar o áudio…',
-  analyse:    'A identificar os melhores momentos…',
-  export:     'A exportar o teu vídeo…',
-  done:       'Tudo pronto!',
-  error:      '',
+  transcribe: tp.phaseTranscribe,
+  analyse: tp.phaseAnalyse,
+  export: tp.phaseExport,
+  done: tp.phaseDone,
+  error: '',
 }
 
 /** Convert raw technical error strings into user-friendly Portuguese messages */
@@ -36,12 +40,12 @@ const friendlyError = (raw: string): string => {
   if (jsonMatch) {
     try {
       const body = JSON.parse(jsonMatch[0]) as Record<string, unknown>
-      const type = (body?.error as Record<string,unknown>)?.type
-              ?? (body?.detail as Record<string,unknown>)?.type ?? ''
-      const code = (body?.error as Record<string,unknown>)?.code
-              ?? (body?.detail as Record<string,unknown>)?.code ?? ''
-      const msg  = String((body?.error as Record<string,unknown>)?.message
-              ?? (body?.detail as Record<string,unknown>)?.message ?? '')
+      const type = (body?.error as Record<string, unknown>)?.type
+        ?? (body?.detail as Record<string, unknown>)?.type ?? ''
+      const code = (body?.error as Record<string, unknown>)?.code
+        ?? (body?.detail as Record<string, unknown>)?.code ?? ''
+      const msg = String((body?.error as Record<string, unknown>)?.message
+        ?? (body?.detail as Record<string, unknown>)?.message ?? '')
 
       if (type === 'overloaded_error')
         return 'O serviço de IA está temporariamente sobrecarregado. Tenta novamente daqui a pouco.'
@@ -94,24 +98,26 @@ const friendlyError = (raw: string): string => {
 // Map each phase's sub-progress (0-100) to the overall 0-100 bar
 const toOverall = (phase: ProcessPhase, sub: number): number => {
   if (phase === 'transcribe') return Math.round(sub * 0.35)        // 0 → 35
-  if (phase === 'analyse')    return 35 + Math.round(sub * 0.30)   // 35 → 65
-  if (phase === 'export')     return 65 + Math.round(sub * 0.34)   // 65 → 99
+  if (phase === 'analyse') return 35 + Math.round(sub * 0.30)   // 35 → 65
+  if (phase === 'export') return 65 + Math.round(sub * 0.34)   // 65 → 99
   return 100
 }
 
 export interface UseStepProcessReturn {
-  pct:   number
-  msg:   string
+  pct: number
+  msg: string
   phase: ProcessPhase
   error: string | null
 }
 
 const useStepProcess = (
   videoPath: string,
-  onDone:   (result: RenderResult) => void,
+  onDone: (result: RenderResult) => void,
+  webcamPath?: string,
+  syncOffsetSec?: number,
 ): UseStepProcessReturn => {
   const [phase, setPhase] = useState<ProcessPhase>('transcribe')
-  const [pct,   setPct]   = useState(0)
+  const [pct, setPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const started = useRef(false)
 
@@ -143,7 +149,7 @@ const useStepProcess = (
       }, 600)
 
       const videoName = basename(videoPath).replace(/\.[^.]+$/, '')
-      const language  = transcript.language ?? 'pt'
+      const language = transcript.language ?? 'pt'
 
       const edlRanges = await window.api
         .callClaude({ transcript, videoName, language })
@@ -162,8 +168,14 @@ const useStepProcess = (
       })
 
       const outputDir = `${dirname(videoPath)}/editado`
-      const result    = await window.api
-        .render({ videoPath, edlJSON: JSON.stringify(edlRanges), outputDir })
+      const result = await window.api
+        .render({
+          videoPath,
+          edlJSON: JSON.stringify(edlRanges),
+          outputDir,
+          webcamPath: webcamPath,
+          syncOffsetSec: syncOffsetSec ?? 0,
+        })
         .finally(() => window.api.removeAllListeners('render-progress'))
 
       setPct(100)

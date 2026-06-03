@@ -7,18 +7,18 @@ import type { EdlRange } from '../../../src/renderer/src/types/electron'
 const MODEL = 'claude-sonnet-4-5'
 
 export const callClaude = async (
-  prompt:     string,
-  apiKey:     string,
-  onChunk:    (chunk: string) => void,
+  prompt: string,
+  apiKey: string,
+  onChunk: (chunk: string) => void,
 ): Promise<EdlRange[]> => {
   const client = new Anthropic({ apiKey })
 
   let fullText = ''
 
   const stream = client.messages.stream({
-    model:      MODEL,
+    model: MODEL,
     max_tokens: 8192,
-    messages:   [{ role: 'user', content: prompt }],
+    messages: [{ role: 'user', content: prompt }],
   })
 
   for await (const event of stream) {

@@ -10,16 +10,18 @@
  * Storage: <userData>/cache/transcriptions/<key>.json
  */
 
-import { createHash }                                   from 'crypto'
-import { statSync, existsSync, readFileSync,
-         writeFileSync, mkdirSync, readdirSync,
-         unlinkSync }                                   from 'fs'
-import { join }                                         from 'path'
-import { app }                                          from 'electron'
-import type { Transcript }                              from '../../../src/renderer/src/types/electron'
+import { createHash } from 'crypto'
+import {
+  statSync, existsSync, readFileSync,
+  writeFileSync, mkdirSync, readdirSync,
+  unlinkSync
+} from 'fs'
+import { join } from 'path'
+import { app } from 'electron'
+import type { Transcript } from '../../../src/renderer/src/types/electron'
 
 const MAX_ENTRIES = 50   // keep at most 50 cached transcriptions
-const MAX_AGE_MS  = 30 * 24 * 60 * 60 * 1000  // 30 days
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000  // 30 days
 
 const getCacheDir = (): string => {
   const dir = join(app.getPath('userData'), 'cache', 'transcriptions')
@@ -29,7 +31,7 @@ const getCacheDir = (): string => {
 
 const getCacheKey = (videoPath: string): string => {
   const stat = statSync(videoPath)
-  const raw  = `${videoPath}:${stat.size}:${stat.mtimeMs}`
+  const raw = `${videoPath}:${stat.size}:${stat.mtimeMs}`
   return createHash('sha256').update(raw).digest('hex').slice(0, 16)
 }
 
@@ -37,12 +39,12 @@ const getCacheKey = (videoPath: string): string => {
 
 export const getCachedTranscription = (videoPath: string): Transcript | null => {
   try {
-    const key       = getCacheKey(videoPath)
+    const key = getCacheKey(videoPath)
     const cachePath = join(getCacheDir(), `${key}.json`)
     if (!existsSync(cachePath)) return null
 
     const entry = JSON.parse(readFileSync(cachePath, 'utf-8')) as {
-      savedAt:    number
+      savedAt: number
       transcript: Transcript
     }
 
@@ -61,8 +63,8 @@ export const getCachedTranscription = (videoPath: string): Transcript | null => 
 
 export const cacheTranscription = (videoPath: string, transcript: Transcript): void => {
   try {
-    const dir       = getCacheDir()
-    const key       = getCacheKey(videoPath)
+    const dir = getCacheDir()
+    const key = getCacheKey(videoPath)
     const cachePath = join(dir, `${key}.json`)
 
     writeFileSync(cachePath, JSON.stringify({ savedAt: Date.now(), transcript }), 'utf-8')

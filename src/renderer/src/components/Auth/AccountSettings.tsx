@@ -1,7 +1,7 @@
-import { useState }      from 'react'
-import { strings }       from '@i18n'
-import { supabase }      from '@lib'
-import { cn }            from '@lib'
+import { useState } from 'react'
+import { strings } from '@i18n'
+import { supabase } from '@lib'
+import { cn } from '@lib'
 import { parseAuthError } from '@hooks'
 
 const t = strings.auth
@@ -9,14 +9,14 @@ const t = strings.auth
 // ── Reusable input field (same as AuthScreen) ────────────────────────────────
 
 interface FieldProps {
-  id:          string
-  label:       string
-  type?:       string
-  value:       string
-  onChange:    (v: string) => void
+  id: string
+  label: string
+  type?: string
+  value: string
+  onChange: (v: string) => void
   autoComplete?: string
-  disabled?:   boolean
-  action?:     React.ReactNode
+  disabled?: boolean
+  action?: React.ReactNode
 }
 
 const Field = ({ id, label, type = 'text', value, onChange, autoComplete, disabled, action }: FieldProps) => (
@@ -53,25 +53,25 @@ const Field = ({ id, label, type = 'text', value, onChange, autoComplete, disabl
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface AccountSettingsProps {
-  email:     string
-  onClose:   () => void
+  email: string
+  onClose: () => void
   onSignOut: () => void
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) => {
-  const [section,     setSection]    = useState<'main' | 'password' | 'delete'>('main')
+  const [section, setSection] = useState<'main' | 'password' | 'delete'>('main')
 
   // Password change
-  const [pw,          setPw]         = useState('')
-  const [pw2,         setPw2]        = useState('')
-  const [showPw,      setShowPw]     = useState(false)
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [showPw, setShowPw] = useState(false)
 
   // Shared
-  const [loading,     setLoading]    = useState(false)
-  const [error,       setError]      = useState<string | null>(null)
-  const [success,     setSuccess]    = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const clear = () => { setError(null); setSuccess(null) }
 
@@ -123,7 +123,7 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
 
   const feedback = (
     <>
-      {error   && <p role="alert"  className="font-mono text-[11px] text-destructive/90 text-center">{error}</p>}
+      {error && <p role="alert" className="font-mono text-[11px] text-destructive/90 text-center">{error}</p>}
       {success && <p role="status" className="font-mono text-[11px] text-success/90 text-center">{success}</p>}
     </>
   )
@@ -203,10 +203,10 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
 
   const renderPassword = () => (
     <form onSubmit={handleChangePassword} className="flex flex-col gap-4" noValidate>
-      <Field id="pw-c"  label={t.newPasswordLabel}     type={showPw ? 'text' : 'password'} value={pw}  onChange={setPw}
-             autoComplete="new-password" disabled={loading} action={showHideBtn} />
+      <Field id="pw-c" label={t.newPasswordLabel} type={showPw ? 'text' : 'password'} value={pw} onChange={setPw}
+        autoComplete="new-password" disabled={loading} action={showHideBtn} />
       <Field id="pw2-c" label={t.confirmPasswordLabel} type={showPw ? 'text' : 'password'} value={pw2} onChange={setPw2}
-             autoComplete="new-password" disabled={loading} />
+        autoComplete="new-password" disabled={loading} />
       <button
         type="submit"
         disabled={loading}
@@ -271,9 +271,9 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
   // ── Title per section ─────────────────────────────────────────────────────
 
   const TITLES = {
-    main:     t.settingsTitle,
+    main: t.settingsTitle,
     password: t.changePasswordBtn.toUpperCase() + '.',
-    delete:   t.deleteAccountBtn.toUpperCase() + '.',
+    delete: t.deleteAccountBtn.toUpperCase() + '.',
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -322,9 +322,9 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
           <h2 className="font-display text-[32px] leading-[0.9] text-foreground uppercase">
             {TITLES[section]}
           </h2>
-          {section === 'main'     && renderMain()}
+          {section === 'main' && renderMain()}
           {section === 'password' && renderPassword()}
-          {section === 'delete'   && renderDelete()}
+          {section === 'delete' && renderDelete()}
         </div>
       </section>
     </div>

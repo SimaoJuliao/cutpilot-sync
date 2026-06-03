@@ -4,11 +4,11 @@ import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { BuildPromptOptions, RenderOptions } from '../renderer/src/types/electron'
 
-import { transcribeVideo }                          from './pipeline/transcribe'
+import { transcribeVideo } from './pipeline/transcribe'
 import { getCachedTranscription, cacheTranscription } from './pipeline/transcriptionCache'
-import { buildPrompt }                                from './pipeline/buildPrompt'
-import { callClaude }                                 from './pipeline/callClaude'
-import { renderVideo }                                from './pipeline/render'
+import { buildPrompt } from './pipeline/buildPrompt'
+import { callClaude } from './pipeline/callClaude'
+import { renderVideo } from './pipeline/render'
 
 // ── Single instance + deep link setup ──────────────────────────────────────
 
@@ -65,18 +65,25 @@ const sendDeepLink = (url: string) => {
 
 // ── Window ──────────────────────────────────────────────────────────────────
 
+// Icon path: .ico on Windows, .icns on macOS, .png on Linux
+const iconFile = process.platform === 'win32' ? 'icon.ico'
+  : process.platform === 'darwin' ? 'icon.icns'
+    : 'icon.png'
+const appIcon = join(__dirname, '../../build', iconFile)
+
 const createWindow = () => {
   win = new BrowserWindow({
-    width:     900,
-    height:    680,
-    minWidth:  760,
+    width: 900,
+    height: 680,
+    minWidth: 760,
     minHeight: 560,
-    titleBarStyle:   'hiddenInset',
+    titleBarStyle: 'hiddenInset',
     backgroundColor: '#161A22',
+    icon: appIcon,
     webPreferences: {
-      preload:          join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
-      nodeIntegration:  false,
+      nodeIntegration: false,
     },
   })
 
@@ -109,7 +116,7 @@ app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) creat
 
 ipcMain.handle('select-video', async () => {
   const { filePaths } = await dialog.showOpenDialog({
-    title:   'Selecionar vídeo',
+    title: 'Selecionar vídeo',
     filters: [{ name: 'Vídeo', extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm'] }],
     properties: ['openFile'],
   })
@@ -147,12 +154,12 @@ ipcMain.handle('call-claude', async (_event, { transcript, videoName, language }
   } catch (err) { console.error('[call-claude]', err); throw err }
 })
 
-ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir }: RenderOptions) => {
+ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir, webcamPath, syncOffsetSec }: RenderOptions) => {
   if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true })
   try {
     return await renderVideo(videoPath, edlJSON, outputDir, (progress) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send('render-progress', progress)
-    })
+    }, webcamPath, syncOffsetSec)
   } catch (err) { console.error('[render]', err); throw err }
 })
 
@@ -167,8 +174,8 @@ ipcMain.handle('check-ffmpeg', async () => {
 // ── IPC — Auth ──────────────────────────────────────────────────────────────
 
 ipcMain.handle('auth:delete-account', async (_event, accessToken: string) => {
-  const url     = __SUPABASE_URL__
-  const svcKey  = __SUPABASE_SERVICE_ROLE_KEY__
+  const url = __SUPABASE_URL__
+  const svcKey = __SUPABASE_SERVICE_ROLE_KEY__
   if (!url || !svcKey) throw new Error('Supabase não configurado no .env')
 
   // Dynamically import to keep the bundle lean

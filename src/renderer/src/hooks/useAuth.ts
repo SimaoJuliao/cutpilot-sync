@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { User }                                from '@supabase/supabase-js'
-import { supabase }                                 from '@lib'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '@lib'
 
 // ── Error parsing ────────────────────────────────────────────────────────────
 
@@ -24,21 +24,21 @@ export const parseAuthError = (err: unknown): string => {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface UseAuthReturn {
-  user:              User | null
-  loading:           boolean
-  isResetting:       boolean    // true while showing "set new password" after deep link
-  finishReset:       ()                               => void
-  signIn:            (email: string, pw: string)      => Promise<void>
-  signUp:            (email: string, pw: string)      => Promise<void>
-  signOut:           ()                               => Promise<void>
-  sendPasswordReset: (email: string)                  => Promise<void>
-  updatePassword:    (newPw: string)                  => Promise<void>
-  deleteAccount:     ()                               => Promise<void>
+  user: User | null
+  loading: boolean
+  isResetting: boolean    // true while showing "set new password" after deep link
+  finishReset: () => void
+  signIn: (email: string, pw: string) => Promise<void>
+  signUp: (email: string, pw: string) => Promise<void>
+  signOut: () => Promise<void>
+  sendPasswordReset: (email: string) => Promise<void>
+  updatePassword: (newPw: string) => Promise<void>
+  deleteAccount: () => Promise<void>
 }
 
 const useAuth = (): UseAuthReturn => {
-  const [user,        setUser]        = useState<User | null>(null)
-  const [loading,     setLoading]     = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const [isResetting, setIsResetting] = useState(false)
 
   // useRef so setting the flag is synchronous and never affected by render cycles
@@ -75,12 +75,12 @@ const useAuth = (): UseAuthReturn => {
 
       // ── Implicit flow: tokens arrive in the URL fragment ──────────────────
       // videoeditor://auth/callback#access_token=...&type=recovery|signup&...
-      const hash       = url.split('#')[1] ?? ''
+      const hash = url.split('#')[1] ?? ''
       const hashParams = new URLSearchParams(hash)
-      const type        = hashParams.get('type')
+      const type = hashParams.get('type')
 
       if (type === 'recovery' || type === 'signup') {
-        const access_token  = hashParams.get('access_token')  ?? ''
+        const access_token = hashParams.get('access_token') ?? ''
         const refresh_token = hashParams.get('refresh_token') ?? ''
         console.log(`[deep-link] implicit flow type=${type} — calling setSession`)
         if (type === 'recovery') expectingRecovery.current = true
@@ -96,9 +96,9 @@ const useAuth = (): UseAuthReturn => {
 
       // ── PKCE flow fallback: a ?code= arrives instead ──────────────────────
       // videoeditor://auth/callback?code=...
-      const query       = url.split('?')[1] ?? ''
+      const query = url.split('?')[1] ?? ''
       const queryParams = new URLSearchParams(query)
-      const code        = queryParams.get('code')
+      const code = queryParams.get('code')
 
       if (code) {
         console.log('[deep-link] PKCE flow — setting expectingRecovery flag')

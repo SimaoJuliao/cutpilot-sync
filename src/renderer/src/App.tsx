@@ -1,152 +1,173 @@
-import { useState }                                               from 'react'
-import { strings }                                               from '@i18n'
-import { useApp, useAuth }                                       from '@hooks'
-import { Onboarding, StepUpload, StepProcess, StepDone,
-         AuthScreen, AccountSettings }                           from '@components'
+import { useState } from 'react'
+import { strings } from '@i18n'
+import { useApp, useAuth } from '@hooks'
+import {
+  Onboarding, StepUpload, StepProcess, StepDone,
+  AuthScreen, AccountSettings
+} from '@components'
 
-// ── Film grain overlay ────────────────────────────────────────────────────────
+// ── Background effects ────────────────────────────────────────────────────────
 
-const Grain = () => (
-  <svg
-    aria-hidden="true"
-    className="pointer-events-none fixed inset-0 h-full w-full z-50 opacity-[0.032] mix-blend-soft-light"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <filter id="grain">
-      <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" />
-      <feColorMatrix type="saturate" values="0" />
-    </filter>
-    <rect width="100%" height="100%" filter="url(#grain)" />
-  </svg>
+const Background = () => (
+  <>
+    {/* Dot grid */}
+    <div className="dot-grid pointer-events-none fixed inset-0 z-0 opacity-100" aria-hidden="true" />
+    {/* Ambient amber glow — center */}
+    <div
+      className="ambient-glow z-0"
+      style={{ width: 600, height: 600, left: '50%', top: '50%', transform: 'translate(-50%,-50%)' }}
+      aria-hidden="true"
+    />
+    {/* Film grain */}
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 h-full w-full z-10 opacity-[0.028] mix-blend-soft-light"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <filter id="grain">
+        <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="4" stitchTiles="stitch" />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#grain)" />
+    </svg>
+  </>
 )
 
 // ── Step labels ───────────────────────────────────────────────────────────────
 
 const STEP_LABELS: Record<string, string> = {
-  upload:  'Carregar vídeo',
+  upload: 'Carregar vídeo',
   process: 'A processar',
-  done:    'Concluído',
+  done: 'Concluído',
 }
+
+const STEP_ORDER = ['upload', 'process', 'done'] as const
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
 const App = () => {
-  const { user, loading: authLoading, isResetting, finishReset, signOut }                 = useAuth()
-  const { step, videoPath, result, finishOnboarding, startProcessing, finishDone, reset } = useApp(user)
+  const { user, loading: authLoading, isResetting, finishReset, signOut } = useAuth()
+  const {
+    step, videoPath, webcamPath, syncOffsetSec, result,
+    finishOnboarding, startProcessing, finishDone, reset,
+  } = useApp(user)
 
   const [showSettings, setShowSettings] = useState(false)
 
-  // ── Loading splash (session restore) ──────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
 
   if (authLoading) {
     return (
-      <div className="h-full flex items-center justify-center" aria-busy="true" aria-label="A carregar…">
-        <Grain />
-        <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/40">
+      <div className="h-full flex items-center justify-center relative" aria-busy="true">
+        <Background />
+        <span className="relative z-20 font-mono text-[10px] tracking-widest uppercase text-muted-foreground/30 animate-pulse">
           …
         </span>
       </div>
     )
   }
 
-  // ── Auth gate ─────────────────────────────────────────────────────────────
+  // ── Auth gate ──────────────────────────────────────────────────────────────
 
   if (!user || isResetting) {
     return (
       <div className="h-full flex flex-col relative overflow-hidden">
-        <Grain />
-
-        {/* Minimal drag region */}
+        <Background />
         <header
-          className="h-[38px] shrink-0"
+          className="h-[38px] shrink-0 relative z-20"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
           aria-hidden="true"
         />
-
-        <main className="flex-1 min-h-0">
+        <main className="flex-1 min-h-0 relative z-20">
           <AuthScreen isResetting={isResetting} onResetDone={finishReset} />
         </main>
       </div>
     )
   }
 
-  // ── Authenticated app ─────────────────────────────────────────────────────
+  // ── Authenticated ──────────────────────────────────────────────────────────
+
+  const stepIdx = STEP_ORDER.indexOf(step as typeof STEP_ORDER[number])
+  const showHeader = step !== 'onboarding'
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
-      <Grain />
+      <Background />
 
       {/* Title bar */}
       <header
-        className="h-[38px] shrink-0 flex items-center justify-between px-5"
+        className="h-[40px] shrink-0 relative z-20 flex items-center justify-between px-5
+                   bg-card/50 backdrop-blur-sm border-b border-border/40"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
+        {/* Wordmark */}
         <span
-          className="font-display text-xs text-muted-foreground/50 tracking-[0.25em]"
+          className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground/50 uppercase select-none"
           aria-label={strings.app.title}
         >
           {strings.app.title}
         </span>
 
-        <div
-          className="flex items-center gap-3"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          {/* Step progress indicator */}
-          {step !== 'onboarding' && (
-            <nav aria-label="Progresso">
-              <ol className="flex gap-1.5 list-none" role="list">
-                {(['upload', 'process', 'done'] as const).map((s) => {
-                  const isCurrent = s === step
-                  const isDone    = s === 'done' && step === 'done'
-                  return (
-                    <li key={s} aria-label={STEP_LABELS[s]} aria-current={isCurrent ? 'step' : undefined}>
-                      <div
-                        className={
-                          isCurrent
-                            ? 'w-4 h-1 rounded-full bg-primary'
-                            : isDone
-                              ? 'w-1 h-1 rounded-full bg-primary/60'
-                              : 'w-1 h-1 rounded-full bg-border'
-                        }
-                      />
-                    </li>
-                  )
-                })}
-              </ol>
-            </nav>
-          )}
+        {/* Step name — center */}
+        {showHeader && (
+          <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[10px]
+                           tracking-[0.25em] text-muted-foreground/35 uppercase select-none">
+            {STEP_LABELS[step] ?? ''}
+          </span>
+        )}
 
-          {/* Settings gear icon */}
+        {/* Settings */}
+        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             type="button"
             onClick={() => setShowSettings(true)}
-            className="text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors"
+            className="flex items-center gap-1.5 px-2 py-1 rounded
+                       text-muted-foreground/60 hover:text-foreground/80
+                       hover:bg-white/5 active:bg-white/10
+                       transition-all duration-150 group"
             aria-label="Definições da conta"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <circle cx="7" cy="7" r="2" stroke="currentColor" strokeWidth="1.2" />
-              <path
-                d="M7 1v1M7 12v1M1 7h1M12 7h1M2.64 2.64l.71.71M10.65 10.65l.71.71M2.64 11.36l.71-.71M10.65 3.35l.71-.71"
-                stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"
-              />
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+              <circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M2 13c0-3.04 2.46-5.5 5.5-5.5S13 9.96 13 13"
+                stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
+            <span className="font-mono text-[9px] tracking-widest uppercase">
+              conta
+            </span>
           </button>
         </div>
+
+        {/* Progress line — base do header */}
+        {showHeader && (
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-border/0" aria-hidden="true">
+            <div
+              className="h-full bg-primary/40 transition-all duration-700 ease-out"
+              style={{ width: `${stepIdx === 0 ? 33 : stepIdx === 1 ? 66 : 100}%` }}
+            />
+          </div>
+        )}
       </header>
 
       {/* Main content */}
       <main
-        className="flex-1 min-h-0"
-        aria-label={step !== 'onboarding' ? STEP_LABELS[step] : 'Boas-vindas'}
+        className="flex-1 min-h-0 relative z-20"
+        aria-label={step !== 'onboarding' ? STEP_LABELS[step] ?? '' : 'Boas-vindas'}
       >
         {step === 'onboarding' && <Onboarding onDone={finishOnboarding} />}
-        {step === 'upload'     && <StepUpload  onNext={startProcessing} />}
-        {step === 'process' && videoPath && <StepProcess videoPath={videoPath} onDone={finishDone} />}
-        {step === 'done'    && result    && <StepDone    result={result}    onNew={reset} />}
+        {step === 'upload' && <StepUpload onNext={startProcessing} />}
+        {step === 'process' && videoPath && (
+          <StepProcess
+            videoPath={videoPath}
+            webcamPath={webcamPath ?? undefined}
+            syncOffsetSec={syncOffsetSec}
+            onDone={finishDone}
+          />
+        )}
+        {step === 'done' && result && <StepDone result={result} onNew={reset} />}
       </main>
 
-      {/* Account settings panel */}
+      {/* Settings panel */}
       {showSettings && (
         <AccountSettings
           email={user.email ?? ''}

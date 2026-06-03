@@ -32,27 +32,27 @@ const prefixKey = (phrase: ScribeWord[], n = 4): string =>
 
 export const buildPrompt = (
   transcript: Transcript,
-  videoName:  string,
-  language    = 'pt',
+  videoName: string,
+  language = 'pt',
 ): string => {
   const words = transcript.words.filter(w => w.type !== 'spacing')
 
   // ── 1. Group words into phrase-lines ──────────────────────────────────────
   // Break on silence ≥ 0.5s OR speaker change (same rule as video-use skill)
   const phrases: ScribeWord[][] = []
-  let current: ScribeWord[]     = []
+  let current: ScribeWord[] = []
 
   for (const w of words) {
     if (current.length === 0) { current.push(w); continue }
 
-    const prev           = current[current.length - 1]
-    const gap            = w.start - prev.end
+    const prev = current[current.length - 1]
+    const gap = w.start - prev.end
     const speakerChanged = w.speaker !== undefined
-                        && prev.speaker !== undefined
-                        && w.speaker !== prev.speaker
+      && prev.speaker !== undefined
+      && w.speaker !== prev.speaker
 
     if (gap >= 0.5 || speakerChanged) { phrases.push(current); current = [w] }
-    else                               { current.push(w) }
+    else { current.push(w) }
   }
   if (current.length > 0) phrases.push(current)
 
@@ -70,7 +70,7 @@ export const buildPrompt = (
   //   window. Then mark everything in the chain EXCEPT the last as RETAKE.
 
   const RETAKE_WINDOW = 120          // seconds between chain members
-  const retakeIdx     = new Set<number>()
+  const retakeIdx = new Set<number>()
 
   for (let i = 0; i < phrases.length; i++) {
     if (retakeIdx.has(i)) continue                     // already marked, skip
@@ -80,7 +80,7 @@ export const buildPrompt = (
 
     // Build the chain starting at i
     const chain: number[] = [i]
-    let   prevEnd         = phrases[i][phrases[i].length - 1].end
+    let prevEnd = phrases[i][phrases[i].length - 1].end
 
     for (let j = i + 1; j < phrases.length; j++) {
       const startJ = phrases[j][0].start
@@ -104,30 +104,30 @@ export const buildPrompt = (
 
   for (let i = 0; i < phrases.length; i++) {
     const phrase = phrases[i]
-    const s      = phrase[0].start
-    const e      = phrase[phrase.length - 1].end
-    const spk    = phrase[0].speaker !== undefined ? `S${phrase[0].speaker} ` : ''
-    const text   = phrase.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim()
-    const flag   = retakeIdx.has(i) ? '  ←RETAKE' : ''
+    const s = phrase[0].start
+    const e = phrase[phrase.length - 1].end
+    const spk = phrase[0].speaker !== undefined ? `S${phrase[0].speaker} ` : ''
+    const text = phrase.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim()
+    const flag = retakeIdx.has(i) ? '  ←RETAKE' : ''
 
     lines.push(`[${s.toFixed(3)} → ${e.toFixed(3)}] ${spk} ${text}${flag}`)
 
     // Annotate the gap to the next phrase
     if (i < phrases.length - 1) {
       const nextStart = phrases[i + 1][0].start
-      const gap       = nextStart - e
+      const gap = nextStart - e
 
-      if      (gap >= 10.0) lines.push(`  ━━━ ${gap.toFixed(1)}s gap (keyboard / noise / setup) ━━━`)
-      else if (gap >=  2.0) lines.push(`  ··· ${gap.toFixed(1)}s silence ···`)
-      else if (gap >=  0.4) lines.push(`  · ${gap.toFixed(1)}s ·`)
+      if (gap >= 10.0) lines.push(`  ━━━ ${gap.toFixed(1)}s gap (keyboard / noise / setup) ━━━`)
+      else if (gap >= 2.0) lines.push(`  ··· ${gap.toFixed(1)}s silence ···`)
+      else if (gap >= 0.4) lines.push(`  · ${gap.toFixed(1)}s ·`)
     }
   }
 
   const transcriptBlock = lines.join('\n')
-  const lastWord        = words.length ? words[words.length - 1].end : 0
-  const totalSec        = Math.round(lastWord)
-  const totalMin        = Math.floor(totalSec / 60)
-  const totalDuration   = `${totalMin}m ${totalSec % 60}s`
+  const lastWord = words.length ? words[words.length - 1].end : 0
+  const totalSec = Math.round(lastWord)
+  const totalMin = Math.floor(totalSec / 60)
+  const totalDuration = `${totalMin}m ${totalSec % 60}s`
 
   // ── 4. System prompt ──────────────────────────────────────────────────────
   return `You are editing a ${language.toUpperCase()} talking-head video. Produce a tight, clean cut by selecting the best continuous ranges to keep.
@@ -171,9 +171,12 @@ PACING
 MERGING
 - Consecutive phrases with ≤ 300ms gap that belong to the SAME thought → ONE range.
 
+GRAMMATICAL COMPLETIONS
+- If a kept phrase ends with a word that takes a prepositional complement in Portuguese/English (e.g. "estratégias", "mais", "protagonistas", "impulsionados", "semana") AND the very next phrase line in the transcript is a short (1–5 word) complement starting with "de", "da", "do", "das", "dos", "em", "para", "por", "com", "neste", "desta", "deste", "of", "in", "for" — keep BOTH phrases as one contiguous range. Never strand a noun from its prepositional modifier.
+
 PADDING
 - Start 50ms before the first word of each kept range.
-- End 80ms after the last word of each kept range.
+- End 150ms after the last word of each kept range.
 
 ━━━ OUTPUT FORMAT ━━━
 

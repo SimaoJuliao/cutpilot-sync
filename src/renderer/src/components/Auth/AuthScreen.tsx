@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { strings }  from '@i18n'
-import { supabase }  from '@lib'
-import { cn }        from '@lib'
+import { strings } from '@i18n'
+import { supabase } from '@lib'
+import { cn } from '@lib'
 import { parseAuthError } from '@hooks'
 
 const t = strings.auth
@@ -11,14 +11,14 @@ type View = 'login' | 'signup' | 'forgot' | 'verify' | 'reset'
 // ── Reusable input field ─────────────────────────────────────────────────────
 
 interface FieldProps {
-  id:          string
-  label:       string
-  type?:       string
-  value:       string
-  onChange:    (v: string) => void
+  id: string
+  label: string
+  type?: string
+  value: string
+  onChange: (v: string) => void
   autoComplete?: string
-  disabled?:   boolean
-  action?:     React.ReactNode
+  disabled?: boolean
+  action?: React.ReactNode
 }
 
 const Field = ({ id, label, type = 'text', value, onChange, autoComplete, disabled, action }: FieldProps) => (
@@ -60,20 +60,20 @@ interface AuthScreenProps {
 }
 
 const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
-  const [view,     setView]    = useState<View>(isResetting ? 'reset' : 'login')
-  const [email,    setEmail]   = useState('')
-  const [pw,       setPw]      = useState('')
-  const [pw2,      setPw2]     = useState('')
-  const [showPw,   setShowPw]  = useState(false)
-  const [loading,  setLoading] = useState(false)
-  const [error,    setError]   = useState<string | null>(null)
-  const [success,  setSuccess] = useState<string | null>(null)
+  const [view, setView] = useState<View>(isResetting ? 'reset' : 'login')
+  const [email, setEmail] = useState('')
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   // Sync reset view when deep link fires after mount
   if (isResetting && view !== 'reset') setView('reset')
 
   const clear = () => { setError(null); setSuccess(null) }
-  const go    = (v: View) => { clear(); setPw(''); setPw2(''); setView(v) }
+  const go = (v: View) => { clear(); setPw(''); setPw2(''); setView(v) }
 
   const run = async (fn: () => Promise<void>) => {
     clear(); setLoading(true)
@@ -159,8 +159,8 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
 
   const feedback = (
     <>
-      {error   && <p role="alert"   className="font-mono text-[11px] text-destructive/90 text-center">{error}</p>}
-      {success && <p role="status"  className="font-mono text-[11px] text-success/90 text-center">{success}</p>}
+      {error && <p role="alert" className="font-mono text-[11px] text-destructive/90 text-center">{error}</p>}
+      {success && <p role="status" className="font-mono text-[11px] text-success/90 text-center">{success}</p>}
     </>
   )
 
@@ -176,9 +176,9 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
   const renderLogin = () => (
     <form onSubmit={handleLogin} className="flex flex-col gap-4" aria-label="Entrar na conta" noValidate>
       <Field id="email" label={t.emailLabel} type="email" value={email} onChange={setEmail}
-             autoComplete="email" disabled={loading} />
+        autoComplete="email" disabled={loading} />
       <Field id="pw" label={t.passwordLabel} type={showPw ? 'text' : 'password'} value={pw} onChange={setPw}
-             autoComplete="current-password" disabled={loading} action={showHideBtn} />
+        autoComplete="current-password" disabled={loading} action={showHideBtn} />
       {primaryBtn(t.loginBtn)}
       {feedback}
       <div className="flex justify-between items-center">
@@ -197,11 +197,11 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
   const renderSignup = () => (
     <form onSubmit={handleSignup} className="flex flex-col gap-4" aria-label="Criar conta" noValidate>
       <Field id="email-s" label={t.emailLabel} type="email" value={email} onChange={setEmail}
-             autoComplete="email" disabled={loading} />
+        autoComplete="email" disabled={loading} />
       <Field id="pw-s" label={t.passwordLabel} type={showPw ? 'text' : 'password'} value={pw} onChange={setPw}
-             autoComplete="new-password" disabled={loading} action={showHideBtn} />
+        autoComplete="new-password" disabled={loading} action={showHideBtn} />
       <Field id="pw2-s" label={t.confirmPasswordLabel} type={showPw ? 'text' : 'password'} value={pw2} onChange={setPw2}
-             autoComplete="new-password" disabled={loading} />
+        autoComplete="new-password" disabled={loading} />
       {primaryBtn(t.signupBtn)}
       {feedback}
       <div className="flex justify-end">{backLink('login', t.hasAccount)}</div>
@@ -212,7 +212,7 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
     <form onSubmit={handleForgot} className="flex flex-col gap-4" aria-label="Recuperar password" noValidate>
       <p className="font-mono text-[11px] text-muted-foreground/60 leading-relaxed">{t.forgotDesc}</p>
       <Field id="email-f" label={t.emailLabel} type="email" value={email} onChange={setEmail}
-             autoComplete="email" disabled={loading} />
+        autoComplete="email" disabled={loading} />
       {primaryBtn(t.sendLinkBtn)}
       {feedback}
       <div className="flex justify-start">{backLink('login')}</div>
@@ -241,10 +241,10 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
 
   const renderReset = () => (
     <form onSubmit={handleReset} className="flex flex-col gap-4" aria-label="Definir nova password" noValidate>
-      <Field id="pw-r"  label={t.newPasswordLabel}     type={showPw ? 'text' : 'password'} value={pw}  onChange={setPw}
-             autoComplete="new-password" disabled={loading} action={showHideBtn} />
+      <Field id="pw-r" label={t.newPasswordLabel} type={showPw ? 'text' : 'password'} value={pw} onChange={setPw}
+        autoComplete="new-password" disabled={loading} action={showHideBtn} />
       <Field id="pw2-r" label={t.confirmPasswordLabel} type={showPw ? 'text' : 'password'} value={pw2} onChange={setPw2}
-             autoComplete="new-password" disabled={loading} />
+        autoComplete="new-password" disabled={loading} />
       {primaryBtn(t.setPasswordBtn)}
       {feedback}
     </form>
@@ -253,11 +253,11 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
   // ── Title per view ─────────────────────────────────────────────────────────
 
   const TITLES: Record<View, string> = {
-    login:  t.loginTitle,
+    login: t.loginTitle,
     signup: t.signupTitle,
     forgot: t.forgotTitle,
     verify: t.verifyTitle,
-    reset:  t.resetTitle,
+    reset: t.resetTitle,
   }
 
   return (
@@ -297,11 +297,11 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
 
       {/* Form content */}
       <div className="w-full max-w-xs">
-        {view === 'login'  && renderLogin()}
+        {view === 'login' && renderLogin()}
         {view === 'signup' && renderSignup()}
         {view === 'forgot' && renderForgot()}
         {view === 'verify' && renderVerify()}
-        {view === 'reset'  && renderReset()}
+        {view === 'reset' && renderReset()}
       </div>
     </section>
   )

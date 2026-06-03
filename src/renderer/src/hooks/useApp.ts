@@ -1,30 +1,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { User }                                from '@supabase/supabase-js'
-import { supabase }                                 from '@lib'
-import type { RenderResult }                        from '@/types'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '@lib'
+import type { RenderResult } from '@/types'
 
 // Legacy key — kept for backwards compatibility with existing installs
 const ONBOARDED_KEY = 'vea_onboarded'
 
 export type Step = 'onboarding' | 'upload' | 'process' | 'done'
 
+export interface ProcessParams {
+  videoPath: string
+  webcamPath?: string
+  syncOffsetSec?: number
+}
+
 export interface AppState {
-  step:      Step
+  step: Step
   videoPath: string | null
-  result:    RenderResult | null
+  webcamPath: string | null
+  syncOffsetSec: number
+  result: RenderResult | null
 }
 
 export interface AppActions {
   finishOnboarding: () => void
-  startProcessing:  (path: string)      => void
-  finishDone:       (res: RenderResult) => void
-  reset:            ()                  => void
+  startProcessing: (params: ProcessParams) => void
+  finishDone: (res: RenderResult) => void
+  reset: () => void
 }
 
 const useApp = (user: User | null): AppState & AppActions => {
-  const [step,      setStep]      = useState<Step>('onboarding')
+  const [step, setStep] = useState<Step>('onboarding')
   const [videoPath, setVideoPath] = useState<string | null>(null)
-  const [result,    setResult]    = useState<RenderResult | null>(null)
+  const [webcamPath, setWebcamPath] = useState<string | null>(null)
+  const [syncOffsetSec, setSyncOffsetSec] = useState(0)
+  const [result, setResult] = useState<RenderResult | null>(null)
 
   // Initialize step once the user is known.
   // Source of truth is Supabase metadata (works cross-device / fresh sessions).
@@ -47,8 +57,10 @@ const useApp = (user: User | null): AppState & AppActions => {
       .catch(err => console.error('[useApp] failed to save onboarding state:', err))
   }, [])
 
-  const startProcessing = useCallback((path: string) => {
+  const startProcessing = useCallback(({ videoPath: path, webcamPath: wc, syncOffsetSec: offset }: ProcessParams) => {
     setVideoPath(path)
+    setWebcamPath(wc ?? null)
+    setSyncOffsetSec(offset ?? 0)
     setStep('process')
   }, [])
 
@@ -59,11 +71,13 @@ const useApp = (user: User | null): AppState & AppActions => {
 
   const reset = useCallback(() => {
     setVideoPath(null)
+    setWebcamPath(null)
+    setSyncOffsetSec(0)
     setResult(null)
     setStep('upload')
   }, [])
 
-  return { step, videoPath, result, finishOnboarding, startProcessing, finishDone, reset }
+  return { step, videoPath, webcamPath, syncOffsetSec, result, finishOnboarding, startProcessing, finishDone, reset }
 }
 
 export default useApp

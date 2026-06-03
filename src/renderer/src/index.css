@@ -4,45 +4,54 @@
 
 @layer base {
   :root {
-    /* ── Charcoal Studio palette ─────────────────────────────────────────────
-       Deep blue-charcoal (like DaVinci Resolve / Premiere) rather than pure
-       black. The key fix: muted-foreground up to 62% so every label is
-       legible, borders visible at 22% so the layout has real structure.    */
+    --background: 220 14% 9%;
+    /* #131720 — deep blue-charcoal     */
+    --foreground: 0 0% 94%;
+    /* #F0F0F0                          */
 
-    --background:          220 12% 10%;   /* #161A22 — deep blue-charcoal   */
-    --foreground:            0  0% 95%;   /* #F2F2F2 — crisp near-white     */
+    --card: 220 14% 13%;
+    /* slightly elevated panels          */
+    --card-foreground: 0 0% 94%;
 
-    --card:                220 12% 14%;   /* slightly elevated panels        */
-    --card-foreground:       0  0% 95%;
+    --primary: 32 97% 55%;
+    /* #F9A825 — warm amber              */
+    --primary-foreground: 0 0% 5%;
 
-    --primary:              24 94% 56%;   /* #F97B24 — warm amber orange     */
-    --primary-foreground:    0  0%  5%;
+    --muted: 220 12% 16%;
+    --muted-foreground: 220 6% 58%;
 
-    --muted:               220 12% 16%;
-    --muted-foreground:    220  6% 62%;   /* was 38% — the main readability fix */
+    --border: 220 12% 20%;
+    --border-bright: 220 12% 30%;
+    --accent: 32 97% 55%;
+    --accent-foreground: 0 0% 5%;
 
-    --border:              220 12% 22%;   /* was 11% — 2× more visible       */
-    --accent:               24 94% 56%;
-    --accent-foreground:     0  0%  5%;
-
-    --destructive:           0 72% 62%;
+    --destructive: 0 72% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --success:             145 52% 50%;
-    --success-foreground:    0  0%  5%;
+    --success: 145 52% 48%;
+    --success-foreground: 0 0% 5%;
 
-    --radius:              0.2rem;
+    --radius: 0.375rem;
+
+    /* Glass surface */
+    --glass-bg: 220 14% 15%;
+    --glass-edge: 220 14% 26%;
   }
 }
 
 @layer base {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
@@ -52,12 +61,22 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  * { border-color: hsl(var(--border)); }
+  * {
+    border-color: hsl(var(--border));
+  }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar       { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
 
   button {
     cursor: pointer;
@@ -65,49 +84,132 @@
     font-size: 13px;
     transition: background 0.15s, opacity 0.15s, border-color 0.15s;
   }
-  button:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  /* Focus ring — visible only for keyboard navigation, not mouse clicks */
+  button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
   :focus-visible {
-    outline: 2px solid hsl(var(--primary));
+    outline: 2px solid hsl(var(--primary) / 0.7);
     outline-offset: 3px;
   }
+
   :focus:not(:focus-visible) {
     outline: none;
   }
+
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+  }
 }
 
-/* ─── Keyframes ────────────────────────────────────────────────────────────── */
-
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0);    }
-}
-
-@keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@keyframes glow-pulse {
-  0%, 100% { filter: drop-shadow(0 0 0px hsl(24 94% 56% / 0)); }
-  50%       { filter: drop-shadow(0 0 10px hsl(24 94% 56% / 0.45)); }
-}
-
-@keyframes slide-in-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
-}
-
-/* ─── Utility classes ───────────────────────────────────────────────────────── */
+/* ─── Display font ──────────────────────────────────────────────────────────── */
 
 .font-display {
   font-family: 'Bebas Neue', 'Impact', sans-serif;
   letter-spacing: 0.02em;
 }
 
+/* ─── Keyframes ─────────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glow-pulse {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0px hsl(32 97% 55% / 0));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 12px hsl(32 97% 55% / 0.4));
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 0.8;
+  }
+
+  92% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(500%);
+    opacity: 0;
+  }
+}
+
+@keyframes wave-bar {
+
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes ambient-glow {
+
+  0%,
+  100% {
+    opacity: 0.04;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.07;
+    transform: scale(1.05);
+  }
+}
+
+/* ─── Utility classes ───────────────────────────────────────────────────────── */
+
 .animate-fade-up {
-  animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fade-in {
@@ -115,17 +217,83 @@
 }
 
 .animate-glow {
-  animation: glow-pulse 2.5s ease-in-out infinite;
+  animation: glow-pulse 2.8s ease-in-out infinite;
 }
 
 .animate-slide-in-right {
   animation: slide-in-right 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Staggered delays for onboarding */
-.delay-100 { animation-delay: 0.10s; }
-.delay-200 { animation-delay: 0.20s; }
-.delay-300 { animation-delay: 0.32s; }
-.delay-400 { animation-delay: 0.46s; }
-.delay-500 { animation-delay: 0.62s; }
-.delay-600 { animation-delay: 0.80s; }
+.animate-scan {
+  animation: scan-line 3.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Staggered delays */
+.delay-75 {
+  animation-delay: 0.075s;
+}
+
+.delay-100 {
+  animation-delay: 0.10s;
+}
+
+.delay-150 {
+  animation-delay: 0.15s;
+}
+
+.delay-200 {
+  animation-delay: 0.20s;
+}
+
+.delay-300 {
+  animation-delay: 0.32s;
+}
+
+.delay-400 {
+  animation-delay: 0.46s;
+}
+
+.delay-500 {
+  animation-delay: 0.62s;
+}
+
+.delay-600 {
+  animation-delay: 0.80s;
+}
+
+/* Wave bars for process screen */
+.wave-bar {
+  display: inline-block;
+  width: 3px;
+  border-radius: 2px;
+  background: hsl(var(--primary) / 0.7);
+  transform-origin: bottom;
+  animation: wave-bar 1.1s ease-in-out infinite;
+}
+
+/* Glass card */
+.glass {
+  background: hsl(var(--glass-bg) / 0.7);
+  border: 1px solid hsl(var(--glass-edge) / 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Dot grid background */
+.dot-grid {
+  background-image: radial-gradient(circle,
+      hsl(var(--border-bright) / 0.35) 1px,
+      transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Ambient glow blob */
+.ambient-glow {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+      hsl(var(--primary) / 0.12) 0%,
+      transparent 70%);
+  animation: ambient-glow 5s ease-in-out infinite;
+  pointer-events: none;
+}
