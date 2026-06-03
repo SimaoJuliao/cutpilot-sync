@@ -1,6 +1,16 @@
 export const pt = {
   app: {
     title: 'CUTPILOT SYNC',
+    accountBtn: 'conta',
+    accountBtnLabel: 'Definições da conta',
+    closeLabel: 'Fechar definições',
+  },
+
+  stepLabels: {
+    upload: 'Carregar vídeo',
+    process: 'A processar',
+    done: 'Concluído',
+    onboarding: 'Boas-vindas',
   },
 
   onboarding: {
@@ -45,6 +55,12 @@ export const pt = {
     syncOffsetHint: '0 = arrancaram em simultâneo',
     // Header above the two zones
     sectionTitle: 'Selecionar vídeos',
+    // Drag-over state
+    dropHere: 'Soltar aqui',
+    // Webcam extras
+    webcamRemoveLabel: 'Remover câmara',
+    secUnit: 'seg.',
+    webcamBadge: '+ câmara',
   },
 
   stepProcess: {
@@ -58,6 +74,12 @@ export const pt = {
     subTranscribe: 'Transcrição palavra a palavra',
     subAnalyse: 'Detecção de enganos, repetições e silêncios',
     subExport: 'Re-codificação frame-precisa e normalização de áudio',
+    // Short phase labels shown in the step indicator
+    phaseTranscribeShort: 'Transcrição',
+    phaseAnalyseShort: 'Análise',
+    phaseExportShort: 'Exportar',
+    // Aria label prefix for the progress ring ("Progresso: X%")
+    progressAriaPrefix: 'Progresso',
   },
 
   stepDone: {
@@ -121,6 +143,8 @@ export const pt = {
     linkSent: 'Link enviado! Verifica o teu email.',
     passwordChanged: 'Password alterada com sucesso.',
     passwordReset: 'Password definida. Podes fazer login.',
+
+    notAuthenticated: 'Não estás autenticado.',
 
     errors: {
       invalidCredentials: 'Email ou password incorretos.',

@@ -41,7 +41,7 @@ const Ring = ({ pct, done }: { pct: number; done: boolean }) => {
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-label={`Progresso: ${pct}%`}
+      aria-label={`${t.progressAriaPrefix}: ${pct}%`}
       className={`relative inline-flex items-center justify-center ${!done ? 'animate-glow' : ''}`}
     >
       <svg width="132" height="132" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
@@ -111,7 +111,7 @@ const PhaseSteps = ({ phase, pct }: { phase: ProcessPhase; pct: number }) => (
             <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${active ? 'bg-primary' : past ? 'bg-primary/60' : 'bg-border'
               }`} />
             <span className="font-mono text-[9px] tracking-widest uppercase text-muted-foreground">
-              {p === 'transcribe' ? 'Transcrição' : p === 'analyse' ? 'Análise' : 'Exportar'}
+              {p === 'transcribe' ? t.phaseTranscribeShort : p === 'analyse' ? t.phaseAnalyseShort : t.phaseExportShort}
             </span>
           </div>
         </div>

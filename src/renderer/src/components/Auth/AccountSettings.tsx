@@ -99,7 +99,7 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
   const handleDeleteAccount = () => {
     run(async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Não estás autenticado.')
+      if (!session) throw new Error(t.notAuthenticated)
       await window.api.deleteAccount(session.access_token)
       await supabase.auth.signOut()
       // onSignOut will be triggered by the auth state change in useAuth
@@ -309,7 +309,7 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
             type="button"
             onClick={onClose}
             className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-            aria-label="Fechar definições"
+            aria-label={strings.app.closeLabel}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

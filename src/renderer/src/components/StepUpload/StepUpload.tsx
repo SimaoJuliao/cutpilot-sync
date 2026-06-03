@@ -149,7 +149,7 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
                 </span>
                 <div className="space-y-1.5">
                   <p className="text-foreground/50 text-sm">
-                    {dragging ? 'Soltar aqui' : t.dropPrompt}
+                    {dragging ? t.dropHere : t.dropPrompt}
                   </p>
                   <p className="font-mono text-[10px] text-muted-foreground/30 tracking-widest uppercase">
                     {t.dropFormats}
@@ -190,7 +190,7 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
                   type="button"
                   onClick={handleWebcamRemove}
                   className="text-muted-foreground/25 hover:text-destructive/60 transition-colors shrink-0 text-xs"
-                  aria-label="Remover câmara"
+                  aria-label={t.webcamRemoveLabel}
                 >✕</button>
               </div>
 
@@ -213,7 +213,7 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
                                  text-foreground/70 font-mono text-sm text-center tabular-nums
                                  rounded focus:outline-none focus:border-primary/50"
                     />
-                    <span className="font-mono text-xs text-muted-foreground/35">seg.</span>
+                    <span className="font-mono text-xs text-muted-foreground/35">{t.secUnit}</span>
                   </div>
                   <p className="font-mono text-[10px] text-muted-foreground/30 mt-2">
                     {t.syncOffsetHint}
@@ -247,7 +247,7 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
               </span>
               <div className="text-center space-y-1.5">
                 <p className="text-muted-foreground/40 text-xs">
-                  {webcamDragging ? 'Soltar aqui' : t.webcamPrompt}
+                  {webcamDragging ? t.dropHere : t.webcamPrompt}
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground/25 tracking-widest uppercase">
                   {t.webcamHint}
@@ -283,7 +283,7 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
         {t.startBtn}
         {webcamFile && (
           <span className="font-mono text-[10px] opacity-60 tracking-wider lowercase">
-            + câmara
+            {t.webcamBadge}
           </span>
         )}
       </button>

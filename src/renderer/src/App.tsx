@@ -36,9 +36,9 @@ const Background = () => (
 // ── Step labels ───────────────────────────────────────────────────────────────
 
 const STEP_LABELS: Record<string, string> = {
-  upload: 'Carregar vídeo',
-  process: 'A processar',
-  done: 'Concluído',
+  upload: strings.stepLabels.upload,
+  process: strings.stepLabels.process,
+  done: strings.stepLabels.done,
 }
 
 const STEP_ORDER = ['upload', 'process', 'done'] as const
@@ -125,7 +125,7 @@ const App = () => {
                        text-muted-foreground/60 hover:text-foreground/80
                        hover:bg-white/5 active:bg-white/10
                        transition-all duration-150 group"
-            aria-label="Definições da conta"
+            aria-label={strings.app.accountBtnLabel}
           >
             <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
               <circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3" />
@@ -133,12 +133,12 @@ const App = () => {
                 stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
             <span className="font-mono text-[9px] tracking-widest uppercase">
-              conta
+              {strings.app.accountBtn}
             </span>
           </button>
         </div>
 
-        {/* Progress line — base do header */}
+        {/* Progress line — bottom of the header */}
         {showHeader && (
           <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-border/0" aria-hidden="true">
             <div
@@ -152,7 +152,7 @@ const App = () => {
       {/* Main content */}
       <main
         className="flex-1 min-h-0 relative z-20"
-        aria-label={step !== 'onboarding' ? STEP_LABELS[step] ?? '' : 'Boas-vindas'}
+        aria-label={step !== 'onboarding' ? STEP_LABELS[step] ?? '' : strings.stepLabels.onboarding}
       >
         {step === 'onboarding' && <Onboarding onDone={finishOnboarding} />}
         {step === 'upload' && <StepUpload onNext={startProcessing} />}

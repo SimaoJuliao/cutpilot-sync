@@ -1,5 +1,7 @@
 /* global __GROQ_API_KEY__ __DEEPGRAM_API_KEY__ __ANTHROPIC_API_KEY__ __SUPABASE_URL__ __SUPABASE_SERVICE_ROLE_KEY__ */
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron'
+import { autoUpdater } from 'electron-updater'
+import { strings } from './i18n'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { BuildPromptOptions, RenderOptions } from '../renderer/src/types/electron'
@@ -107,8 +109,34 @@ const createWindow = () => {
   }
 }
 
+// ── Auto-updater ─────────────────────────────────────────────────────────────
+
+autoUpdater.on('update-downloaded', () => {
+  const t = strings.updater
+  dialog.showMessageBox({
+    type: 'info',
+    title: t.title,
+    message: t.message,
+    detail: t.detail,
+    buttons: [t.restartBtn, t.laterBtn],
+    defaultId: 0,
+  }).then(({ response }) => {
+    if (response === 0) autoUpdater.quitAndInstall()
+  })
+})
+
+autoUpdater.on('error', (err) => {
+  console.error('[updater] erro:', err?.message ?? err)
+})
+
 Menu.setApplicationMenu(null)
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  createWindow()
+  // Check for updates 3 seconds after startup (gives the window time to load)
+  if (app.isPackaged) {
+    setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 3000)
+  }
+})
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 
