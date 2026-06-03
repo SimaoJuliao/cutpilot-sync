@@ -158,7 +158,7 @@ export const renderVideo = async (
   onProgress?.({ pct: 5, message: `${ranges.length} segmentos identificados` })
 
   // ── 2. Working dirs ───────────────────────────────────────────────────────
-  const workDir = join(tmpdir(), `vea_render_${Date.now()}`)
+  const workDir = join(tmpdir(), `cps_render_${Date.now()}`)
   const clipsDir = join(workDir, 'clips')
   mkdirSync(clipsDir, { recursive: true })
 
@@ -259,7 +259,7 @@ export const renderVideo = async (
     let webcamOutputPath: string | undefined
     if (webcamPath) {
       const offset = syncOffsetSec ?? 0
-      const wcWorkDir = join(tmpdir(), `vea_render_wc_${Date.now()}`)
+      const wcWorkDir = join(tmpdir(), `cps_render_wc_${Date.now()}`)
       const wcClipsDir = join(wcWorkDir, 'clips')
       mkdirSync(wcClipsDir, { recursive: true })
 

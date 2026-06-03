@@ -69,12 +69,12 @@ const useAuth = (): UseAuthReturn => {
       }
     })
 
-    // Handle auth deep links (videoeditor://auth/callback#type=recovery|signup&...)
+    // Handle auth deep links (cutpilotsync://auth/callback#type=recovery|signup&...)
     const cleanupLink = window.api.onDeepLink((url) => {
       console.log('[deep-link] received:', url)
 
       // ── Implicit flow: tokens arrive in the URL fragment ──────────────────
-      // videoeditor://auth/callback#access_token=...&type=recovery|signup&...
+      // cutpilotsync://auth/callback#access_token=...&type=recovery|signup&...
       const hash = url.split('#')[1] ?? ''
       const hashParams = new URLSearchParams(hash)
       const type = hashParams.get('type')
@@ -95,7 +95,7 @@ const useAuth = (): UseAuthReturn => {
       }
 
       // ── PKCE flow fallback: a ?code= arrives instead ──────────────────────
-      // videoeditor://auth/callback?code=...
+      // cutpilotsync://auth/callback?code=...
       const query = url.split('?')[1] ?? ''
       const queryParams = new URLSearchParams(query)
       const code = queryParams.get('code')
@@ -135,7 +135,7 @@ const useAuth = (): UseAuthReturn => {
 
   const sendPasswordReset = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'videoeditor://auth/callback',
+      redirectTo: 'cutpilotsync://auth/callback',
     })
     if (error) throw new Error(parseAuthError(error))
   }, [])

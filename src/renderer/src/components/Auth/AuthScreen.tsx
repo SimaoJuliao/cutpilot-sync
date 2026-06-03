@@ -106,7 +106,7 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
     e.preventDefault()
     run(async () => {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'videoeditor://auth/callback',
+        redirectTo: 'cutpilotsync://auth/callback',
       })
       if (error) throw new Error(parseAuthError(error))
       setSuccess(t.linkSent)

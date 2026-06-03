@@ -55,7 +55,7 @@ export const transcribeVideo = async (
   onProgress?.(5)
 
   // ── Step 1: Extract audio ──────────────────────────────────────────────────
-  const audioPath = join(tmpdir(), `vea_audio_${Date.now()}.wav`)
+  const audioPath = join(tmpdir(), `cps_audio_${Date.now()}.wav`)
 
   await new Promise<void>((resolve, reject) => {
     const ff = spawn('ffmpeg', [

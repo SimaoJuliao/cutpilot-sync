@@ -3,8 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { supabase } from '@lib'
 import type { RenderResult } from '@/types'
 
-// Legacy key — kept for backwards compatibility with existing installs
-const ONBOARDED_KEY = 'vea_onboarded'
+const ONBOARDED_KEY = 'cps_onboarded'
 
 export type Step = 'onboarding' | 'upload' | 'process' | 'done'
 

@@ -21,15 +21,15 @@ let pendingDeepLink: string | null = null
 // the same single-instance lock file — prevents two windows opening on deep link.
 app.setPath('userData', join(app.getPath('appData'), 'CutPilotSync'))
 
-// Register the videoeditor:// protocol so the OS knows to open this app.
+// Register the cutpilotsync:// protocol so the OS knows to open this app.
 // In dev mode on Windows the app isn't "installed", so we point electron.exe
 // directly at the compiled main entry (out/main/index.js).
 if (!app.isPackaged && process.platform === 'win32') {
-  app.setAsDefaultProtocolClient('videoeditor', process.execPath, [
+  app.setAsDefaultProtocolClient('cutpilotsync', process.execPath, [
     join(process.cwd(), 'out', 'main', 'index.js'),
   ])
 } else {
-  app.setAsDefaultProtocolClient('videoeditor')
+  app.setAsDefaultProtocolClient('cutpilotsync')
 }
 
 // Windows / Linux: prevent a second instance — forward the URL instead
@@ -41,7 +41,7 @@ if (!gotLock) {
 
 app.on('second-instance', (_event, argv) => {
   console.log('[second-instance] argv:', argv)
-  const url = argv.find(arg => arg.startsWith('videoeditor://'))
+  const url = argv.find(arg => arg.startsWith('cutpilotsync://'))
   console.log('[second-instance] deep link url:', url ?? 'NOT FOUND')
   if (url) sendDeepLink(url)
   if (win) { win.show(); win.focus() }
@@ -51,7 +51,7 @@ app.on('second-instance', (_event, argv) => {
 app.on('open-url', (_event, url) => sendDeepLink(url))
 
 // Check if launched with a deep-link as CLI arg (Windows cold-start)
-const urlFromArgs = process.argv.find(a => a.startsWith('videoeditor://'))
+const urlFromArgs = process.argv.find(a => a.startsWith('cutpilotsync://'))
 if (urlFromArgs) pendingDeepLink = urlFromArgs
 
 const sendDeepLink = (url: string) => {
