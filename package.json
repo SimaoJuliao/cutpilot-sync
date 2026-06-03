@@ -1,6 +1,6 @@
 {
   "name": "cutpilot-sync",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "CutPilot Sync — AI-powered video editor: transcribe, cut, render",
   "main": "out/main/index.js",
   "scripts": {
@@ -58,12 +58,14 @@
       "icon": "build/icon.icns"
     },
     "linux": {
+      "target": ["AppImage", "deb"],
       "icon": "build/icon.png"
     },
     "publish": {
       "provider": "github",
       "owner": "SimaoJuliao",
-      "repo": "cutpilot-sync"
+      "repo": "cutpilot-sync",
+      "releaseType": "release"
     },
     "extraResources": []
   }

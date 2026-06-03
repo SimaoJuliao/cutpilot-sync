@@ -1,0 +1,48 @@
+name: Build & Release
+
+# Runs automatically when you push a version tag (e.g. v0.0.2)
+# Also triggerable manually from the GitHub Actions tab
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write   # Required to create/upload GitHub Releases
+
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env from GitHub Secrets
+        shell: bash
+        run: |
+          echo "DEEPGRAM_API_KEY=${{ secrets.DEEPGRAM_API_KEY }}"           >> .env
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}"         >> .env
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}"                   >> .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}"         >> .env
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
+
+      - name: Build & publish
+        env:
+          # GITHUB_TOKEN is automatically provided by Actions — no extra setup needed
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist -- --publish=always

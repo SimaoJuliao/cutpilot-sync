@@ -26,12 +26,17 @@ Optionally add a **webcam recording** — the app cuts both files at the exact s
 | Rendering | FFmpeg (installed locally by the user) |
 | Auth | Supabase Auth (email + password) |
 | Auto-update | electron-updater + GitHub Releases |
+| CI/CD | GitHub Actions — builds Windows, macOS and Linux in parallel |
 
 ---
 
 ## Project structure
 
 ```
+.github/
+└── workflows/
+    └── release.yml              # CI/CD — builds & publishes on version tag push
+
 src/
 ├── main/                        # Main process (Node.js / Electron)
 │   ├── index.ts                 # Window, deep links, IPC handlers, auto-updater
@@ -110,28 +115,50 @@ GH_TOKEN=ghp_...
 npm run dev
 ```
 
-### 4. Build for distribution
+### 4. Build locally (optional)
 
 ```bash
-# Build installer only (no upload)
+# Build installer only — output goes to /dist
 npm run dist
 
-# Build + publish to GitHub Releases
+# Build + publish directly to GitHub Releases (Windows only, from your machine)
 $env:GH_TOKEN = (Get-Content .env | Where-Object { $_ -match '^GH_TOKEN=' }) -replace '^GH_TOKEN=', ''
 npm run dist -- --publish=always
 ```
 
-The installer is generated in `/dist` (`.exe` on Windows, `.dmg` on macOS).
+> For cross-platform releases (Windows + macOS + Linux), use the GitHub Actions workflow instead — see below.
 
 ---
 
 ## Releasing a new version
 
-1. Make your changes
-2. Bump the version in `package.json` (e.g. `0.0.1` → `0.0.2`)
-3. Run the publish command above
-4. electron-builder builds the installer, uploads it to GitHub Releases, and generates `latest.yml`
-5. Users with the app already installed receive an automatic update notification on next launch
+The recommended workflow uses **GitHub Actions** to build all platforms automatically:
+
+```bash
+# 1. Bump the version in package.json (e.g. "0.0.1" → "0.0.2")
+
+# 2. Commit, tag and push
+git add package.json
+git commit -m "chore: bump version to 0.0.2"
+git tag v0.0.2
+git push && git push --tags
+```
+
+GitHub Actions picks up the tag and runs three parallel jobs — one on Windows, one on macOS, one on Linux. Each builds the installer for its own platform and uploads it to the same GitHub Release. The `latest.yml` is generated automatically, and users receive an update notification on the next app launch.
+
+### GitHub Actions secrets required
+
+Add these in `Settings → Secrets and variables → Actions → New repository secret`:
+
+| Secret | Value |
+|---|---|
+| `DEEPGRAM_API_KEY` | Your Deepgram key |
+| `ANTHROPIC_API_KEY` | Your Anthropic key |
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase anon public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+
+> `GITHUB_TOKEN` is provided automatically by Actions — no extra setup needed.
 
 ---
 
@@ -249,7 +276,7 @@ App starts
 | `SUPABASE_URL` | Main + Renderer | Supabase → Settings → API → Project URL |
 | `SUPABASE_ANON_KEY` | Renderer only | Supabase → Settings → API → anon public |
 | `SUPABASE_SERVICE_ROLE_KEY` | Main process only | Supabase → Settings → API → service_role |
-| `GH_TOKEN` | Build time only (publishing) | GitHub → Settings → Developer settings → Personal access tokens |
+| `GH_TOKEN` | Local publishing only | GitHub → Settings → Developer settings → Personal access tokens (not needed for CI/CD) |
 
 ---
 
@@ -258,7 +285,11 @@ App starts
 ### APIs
 - [ ] `DEEPGRAM_API_KEY` valid and with available credits
 - [ ] `ANTHROPIC_API_KEY` valid and with sufficient credits
-- [ ] `GH_TOKEN` has `Contents: Read and write` on the target repository
+
+### CI/CD
+- [ ] All 5 secrets added to GitHub Actions (`Settings → Secrets and variables → Actions`)
+- [ ] `release.yml` workflow triggers correctly on tag push
+- [ ] GitHub repository is **public** (required for anonymous installer downloads)
 
 ### Supabase
 - [ ] All Supabase variables filled in `.env`
@@ -273,5 +304,4 @@ App starts
 - [ ] FFmpeg available on the target machine
 - [ ] Tested on a clean machine (no dev dependencies)
 - [ ] `cutpilotsync://` deep link works in the production build
-- [ ] GitHub repository is **public** (required for anonymous installer downloads)
-- [ ] Release is published (not Draft) on GitHub Releases
+- [ ] Release is published (not Draft) on GitHub Releases — automatic with `releaseType: "release"` in `package.json`
