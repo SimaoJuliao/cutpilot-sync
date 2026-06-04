@@ -1,6 +1,6 @@
 {
   "name": "cutpilot-sync",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "CutPilot Sync — AI-powered video editor: transcribe, cut, render",
   "author": {
     "name": "Simão Julião",
@@ -66,6 +66,13 @@
     "mac": {
       "target": "dmg",
       "icon": "build/icon.icns"
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" },
+        { "x": 270, "y": 380, "type": "file", "path": "scripts/open-cutpilot.command" }
+      ]
     },
     "linux": {
       "target": ["AppImage", "deb"],
