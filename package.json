@@ -23,6 +23,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^16.4.5",
     "electron-updater": "^6.8.3",
+    "ffmpeg-static": "^5.3.0",
     "form-data": "^4.0.0",
     "lucide-react": "^1.16.0",
     "tailwind-merge": "^3.6.0"
@@ -53,7 +54,9 @@
     "protocols": [
       {
         "name": "CutPilot Sync",
-        "schemes": ["cutpilotsync"]
+        "schemes": [
+          "cutpilotsync"
+        ]
       }
     ],
     "directories": {
@@ -68,7 +71,10 @@
       "icon": "build/icon.icns"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "build/icon.png"
     },
     "publish": {
@@ -77,6 +83,9 @@
       "repo": "cutpilot-sync",
       "releaseType": "release"
     },
-    "extraResources": []
+    "extraResources": [],
+    "asarUnpack": [
+      "**/node_modules/ffmpeg-static/**"
+    ]
   }
 }

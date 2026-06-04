@@ -24,9 +24,11 @@ app.setPath('userData', join(app.getPath('appData'), 'CutPilotSync'))
 // Register the cutpilotsync:// protocol so the OS knows to open this app.
 // In dev mode on Windows the app isn't "installed", so we point electron.exe
 // directly at the compiled main entry (out/main/index.js).
+// NOTE: app.getAppPath() is used instead of process.cwd() because Windows
+// launches protocol handlers with cwd=C:\Windows\System32, making cwd unreliable.
 if (!app.isPackaged && process.platform === 'win32') {
   app.setAsDefaultProtocolClient('cutpilotsync', process.execPath, [
-    join(process.cwd(), 'out', 'main', 'index.js'),
+    join(app.getAppPath(), 'out', 'main', 'index.js'),
   ])
 } else {
   app.setAsDefaultProtocolClient('cutpilotsync')
@@ -194,8 +196,9 @@ ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir, webcamP
 ipcMain.handle('open-folder', (_event, folderPath: string) => shell.openPath(folderPath))
 
 ipcMain.handle('check-ffmpeg', async () => {
-  const { execSync } = await import('child_process')
-  try { execSync('ffmpeg -version', { stdio: 'ignore' }); return true }
+  const { execFileSync } = await import('child_process')
+  const { getFFmpegPath } = await import('./pipeline/ffmpeg')
+  try { execFileSync(getFFmpegPath(), ['-version'], { stdio: 'ignore' }); return true }
   catch { return false }
 })
 

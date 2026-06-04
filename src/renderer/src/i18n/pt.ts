@@ -44,7 +44,11 @@ export const pt = {
     swapHint: 'clica para trocar',
     ffmpegWarning: 'FFmpeg não encontrado —',
     ffmpegLink: 'instalar aqui',
+    ffmpegBannerTitle: 'FFmpeg não está instalado',
+    ffmpegBannerDesc: 'Necessário para processar vídeos. Instala e reinicia a app.',
+    ffmpegBannerBtn: 'Instalar FFmpeg →',
     startBtn: 'Editar vídeo',
+    selectVideoBtn: 'Seleciona um vídeo',
     // Webcam section
     webcamLabel: 'Câmara',
     webcamOptional: 'opcional',
