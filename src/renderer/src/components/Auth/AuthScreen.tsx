@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { strings } from '@i18n'
 import { supabase } from '@lib'
 import { cn } from '@lib'
 import { parseAuthError } from '@hooks'
 
 const t = strings.auth
+
+// Must match the "Minimum interval per user" setting in Supabase Auth → SMTP settings
+const RESEND_COOLDOWN_SEC = 60
 
 type View = 'login' | 'signup' | 'forgot' | 'verify' | 'reset'
 
@@ -68,6 +71,14 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [resendCooldown, setResendCooldown] = useState(0)
+
+  // Countdown timer — decrements every second while cooldown is active
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
 
   // Sync reset view when deep link fires after mount
   if (isResetting && view !== 'reset') setView('reset')
@@ -98,6 +109,7 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
     run(async () => {
       const { error } = await supabase.auth.signUp({ email, password: pw })
       if (error) throw new Error(parseAuthError(error))
+      setResendCooldown(RESEND_COOLDOWN_SEC) // email sent during signup — start cooldown immediately
       go('verify')
     })
   }
@@ -129,6 +141,7 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
       const { error } = await supabase.auth.resend({ type: 'signup', email })
       if (error) throw new Error(parseAuthError(error))
       setSuccess(t.linkSent)
+      setResendCooldown(RESEND_COOLDOWN_SEC)
     })
   }
 
@@ -230,9 +243,9 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
         {t.verifyDesc} <span className="text-foreground/80">{email}</span>.<br />
         <span className="mt-1 block">{t.verifySubDesc}</span>
       </p>
-      <button type="button" onClick={handleResend} disabled={loading}
-        className="font-mono text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors tracking-wide disabled:opacity-40">
-        {t.resendBtn}
+      <button type="button" onClick={handleResend} disabled={loading || resendCooldown > 0}
+        className="font-mono text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors tracking-wide disabled:opacity-40 disabled:cursor-not-allowed">
+        {resendCooldown > 0 ? `${t.resendBtn} (${resendCooldown}s)` : t.resendBtn}
       </button>
       {feedback}
       <div>{backLink('login', t.differentEmail)}</div>
