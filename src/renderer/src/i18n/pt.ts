@@ -22,22 +22,22 @@ export const pt = {
     oneTimeNote: 'não voltarás a ver este ecrã',
 
     // Workflow steps
-    step1Label: 'Seleciona os vídeos',
-    step1Desc: 'Arrasta o vídeo do ecrã com áudio. Opcionalmente adiciona a câmara para cortes sincronizados.',
+    step1Label: 'Seleciona o vídeo',
+    step1Desc: 'Qualquer vídeo com áudio — câmara, ecrã ou talking head. Opcionalmente adiciona um segundo ângulo para dois ficheiros cortados em sincronia.',
     step2Label: 'A IA decide os cortes',
     step2Desc: 'Transcrição palavra a palavra. Detecção automática de enganos, repetições e pausas longas.',
     step3Label: 'Recebe o resultado',
-    step3Desc: 'Vídeo limpo e pronto a publicar. Se usaste câmara, recebes dois ficheiros sincronizados.',
+    step3Desc: 'Vídeo limpo e pronto a publicar. Se usaste dois ângulos, recebes dois ficheiros cortados em sincronia.',
 
     // Dual-video callout
-    dualVideoTitle: 'Suporte a dois vídeos',
-    dualVideoDesc: 'Tens ecrã + câmara? Adiciona ambos — a app corta-os nos mesmos pontos, em perfeita sincronização.',
+    dualVideoTitle: 'Dois ângulos sincronizados',
+    dualVideoDesc: 'Tens câmara + ecrã, ou dois ângulos de câmara? Adiciona o segundo vídeo — não precisa de áudio, a app corta ambos nos mesmos pontos.',
   },
 
   stepUpload: {
     // Main video
     mainLabel: 'Vídeo principal',
-    mainSublabel: 'ecrã + áudio',
+    mainSublabel: 'com áudio',
     dropPrompt: 'Arrasta ou clica para selecionar',
     dropFormats: 'MP4  ·  MOV  ·  MKV  ·  AVI  ·  WEBM',
     readyLabel: 'Pronto',
@@ -49,7 +49,7 @@ export const pt = {
     webcamLabel: 'Câmara',
     webcamOptional: 'opcional',
     webcamPrompt: 'Adicionar vídeo da câmara',
-    webcamHint: 'Será cortado nos mesmos pontos, em sincronização',
+    webcamHint: 'Será cortado nos mesmos pontos — sem áudio necessário',
     webcamReadyLabel: 'Câmara pronta',
     syncOffsetLabel: 'Offset de sync (seg.)',
     syncOffsetHint: '0 = arrancaram em simultâneo',
@@ -90,7 +90,7 @@ export const pt = {
     openFolderBtn: 'Abrir pasta',
     editAnotherBtn: '+ editar outro vídeo',
     // dual video
-    mainFileLabel: 'Ecrã',
+    mainFileLabel: 'Principal',
     webcamFileLabel: 'Câmara',
     filesLabel: 'ficheiros',
   },
