@@ -113,19 +113,47 @@ const createWindow = () => {
 
 // ── Auto-updater ─────────────────────────────────────────────────────────────
 
-autoUpdater.on('update-downloaded', () => {
-  const t = strings.updater
-  dialog.showMessageBox({
-    type: 'info',
-    title: t.title,
-    message: t.message,
-    detail: t.detail,
-    buttons: [t.restartBtn, t.laterBtn],
-    defaultId: 0,
-  }).then(({ response }) => {
-    if (response === 0) autoUpdater.quitAndInstall()
+// On macOS without code signing, auto-download/install is blocked by Gatekeeper.
+// Strategy:
+//   - macOS: detect update → show dialog → open GitHub releases page in browser
+//   - Windows/Linux: auto-download → show restart dialog
+const isMacOS = process.platform === 'darwin'
+
+if (isMacOS) {
+  // On macOS, don't auto-download — just notify and redirect to download page
+  autoUpdater.autoDownload = false
+
+  autoUpdater.on('update-available', (info) => {
+    const t = strings.updater
+    dialog.showMessageBox({
+      type: 'info',
+      title: t.availableTitle,
+      message: `${t.availableMessage} (v${info.version})`,
+      detail: t.availableDetail,
+      buttons: [t.downloadBtn, t.skipBtn],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) {
+        shell.openExternal('https://github.com/SimaoJuliao/cutpilot-sync/releases/latest')
+      }
+    })
   })
-})
+} else {
+  // Windows / Linux: auto-download works fine, show restart dialog when ready
+  autoUpdater.on('update-downloaded', () => {
+    const t = strings.updater
+    dialog.showMessageBox({
+      type: 'info',
+      title: t.title,
+      message: t.message,
+      detail: t.detail,
+      buttons: [t.restartBtn, t.laterBtn],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall()
+    })
+  })
+}
 
 autoUpdater.on('error', (err) => {
   console.error('[updater] erro:', err?.message ?? err)
@@ -136,7 +164,7 @@ app.whenReady().then(() => {
   createWindow()
   // Check for updates 3 seconds after startup (gives the window time to load)
   if (app.isPackaged) {
-    setTimeout(() => autoUpdater.checkForUpdatesAndNotify(), 3000)
+    setTimeout(() => autoUpdater.checkForUpdates(), 3000)
   }
 })
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

@@ -10,11 +10,18 @@
 
 export const pt = {
   updater: {
+    // Shown when update is downloaded and ready to install (Windows / signed macOS)
     title: 'Atualização disponível',
     message: 'Uma nova versão do CutPilot Sync foi descarregada.',
     detail: 'Clica em "Reiniciar" para instalar a atualização agora, ou "Mais tarde" para instalar na próxima vez que abrires a app.',
     restartBtn: 'Reiniciar agora',
     laterBtn: 'Mais tarde',
+    // Shown on macOS (unsigned) when a new version is detected — redirects to download page
+    availableTitle: 'Nova versão disponível',
+    availableMessage: 'Está disponível uma nova versão do CutPilot Sync.',
+    availableDetail: 'No macOS, o download automático requer assinatura da app. Clica em "Descarregar" para ir à página de transferência.',
+    downloadBtn: 'Descarregar',
+    skipBtn: 'Ignorar',
   },
 } as const
 
