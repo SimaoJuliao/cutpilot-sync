@@ -84,11 +84,18 @@ const createWindow = () => {
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#161A22',
     icon: appIcon,
+    show: false, // show only after maximize to avoid visual flash
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
+  })
+
+  // Open maximized, then reveal — avoids the "small window → maximize" flash
+  win.once('ready-to-show', () => {
+    win?.maximize()
+    win?.show()
   })
 
   // F12 toggles DevTools
