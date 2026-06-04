@@ -103,10 +103,6 @@ SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGci...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...
 
-# GitHub (publishing releases — only needed when running npm run dist)
-GH_TOKEN=ghp_...
-```
-
 > **Note:** `.env` is in `.gitignore` and is never committed. All keys are compiled into the app bundle at build time via Vite's `define` — the `.env` file is not shipped inside the installer.
 
 ### 3. Run in development
@@ -118,15 +114,11 @@ npm run dev
 ### 4. Build locally (optional)
 
 ```bash
-# Build installer only — output goes to /dist
+# Build installer only — output goes to /dist (current platform only)
 npm run dist
-
-# Build + publish directly to GitHub Releases (Windows only, from your machine)
-$env:GH_TOKEN = (Get-Content .env | Where-Object { $_ -match '^GH_TOKEN=' }) -replace '^GH_TOKEN=', ''
-npm run dist -- --publish=always
 ```
 
-> For cross-platform releases (Windows + macOS + Linux), use the GitHub Actions workflow instead — see below.
+> For publishing releases (Windows + macOS + Linux), use the GitHub Actions workflow — see below. Local builds are only needed to test the installer before releasing.
 
 ---
 
@@ -276,7 +268,6 @@ App starts
 | `SUPABASE_URL` | Main + Renderer | Supabase → Settings → API → Project URL |
 | `SUPABASE_ANON_KEY` | Renderer only | Supabase → Settings → API → anon public |
 | `SUPABASE_SERVICE_ROLE_KEY` | Main process only | Supabase → Settings → API → service_role |
-| `GH_TOKEN` | Local publishing only | GitHub → Settings → Developer settings → Personal access tokens (not needed for CI/CD) |
 
 ---
 
@@ -287,8 +278,8 @@ App starts
 - [ ] `ANTHROPIC_API_KEY` valid and with sufficient credits
 
 ### CI/CD
-- [ ] All 5 secrets added to GitHub Actions (`Settings → Secrets and variables → Actions`)
-- [ ] `release.yml` workflow triggers correctly on tag push
+- [ ] All 5 API secrets added to GitHub Actions (`Settings → Secrets and variables → Actions`)
+- [ ] `release.yml` workflow triggers correctly on tag push — `GITHUB_TOKEN` is automatic, no extra setup needed
 - [ ] GitHub repository is **public** (required for anonymous installer downloads)
 
 ### Supabase

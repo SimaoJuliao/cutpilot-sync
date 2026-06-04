@@ -1,6 +1,6 @@
 {
   "name": "cutpilot-sync",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "CutPilot Sync — AI-powered video editor: transcribe, cut, render",
   "author": {
     "name": "Simão Julião",
@@ -50,6 +50,12 @@
     "appId": "com.cutpilotsync.app",
     "productName": "CutPilot Sync",
     "icon": "build/icon",
+    "protocols": [
+      {
+        "name": "CutPilot Sync",
+        "schemes": ["cutpilotsync"]
+      }
+    ],
     "directories": {
       "output": "dist"
     },
