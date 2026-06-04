@@ -23,15 +23,15 @@ export const pt = {
 
     // Workflow steps
     step1Label: 'Seleciona o vídeo',
-    step1Desc: 'Qualquer vídeo com áudio — câmara, ecrã ou talking head. Opcionalmente adiciona um segundo ângulo para dois ficheiros cortados em sincronia.',
+    step1Desc: 'Qualquer vídeo com áudio — câmara, ecrã ou talking head. Opcionalmente adiciona um segundo vídeo para dois ficheiros cortados em sincronia.',
     step2Label: 'A IA decide os cortes',
     step2Desc: 'Transcrição palavra a palavra. Detecção automática de enganos, repetições e pausas longas.',
     step3Label: 'Recebe o resultado',
-    step3Desc: 'Vídeo limpo e pronto a publicar. Se usaste dois ângulos, recebes dois ficheiros cortados em sincronia.',
+    step3Desc: 'Vídeo limpo e pronto a publicar. Se usaste dois vídeos, recebes dois ficheiros cortados em sincronia.',
 
     // Dual-video callout
-    dualVideoTitle: 'Dois ângulos sincronizados',
-    dualVideoDesc: 'Tens câmara + ecrã, ou dois ângulos de câmara? Adiciona o segundo vídeo — não precisa de áudio, a app corta ambos nos mesmos pontos.',
+    dualVideoTitle: 'Dois vídeos sincronizados',
+    dualVideoDesc: 'Tens câmara + ecrã, ou dois vídeos diferentes? Adiciona o segundo — não precisa de áudio, a app corta ambos nos mesmos pontos.',
   },
 
   stepUpload: {

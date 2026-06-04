@@ -16,8 +16,8 @@ export const parseAuthError = (err: unknown): string => {
     return 'Email inválido.'
   if (msg.includes('email not confirmed'))
     return 'Email ainda não confirmado. Verifica a tua caixa de entrada.'
-  if (msg.includes('rate limit') || msg.includes('too many'))
-    return 'Demasiadas tentativas. Aguarda um momento.'
+  if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('email rate limit exceeded'))
+    return 'Demasiadas tentativas. Aguarda um momento antes de reenviar.'
   return 'Algo correu mal. Tenta novamente.'
 }
 
