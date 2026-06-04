@@ -6,51 +6,114 @@ import { parseAuthError } from '@hooks'
 
 const t = strings.auth
 
-// ── Reusable input field (same as AuthScreen) ────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+const LockIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect x="3" y="7" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+)
+
+const LogoutIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    <path d="M10 5l3 3-3 3M13 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const TrashIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M2 4h12M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    <path d="M3 4l1 9a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+)
+
+const CloseIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+    <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+)
+
+const ChevronIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+    <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const WarnIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M10 3L18.5 17.5H1.5L10 3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <line x1="10" y1="9" x2="10" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="10" cy="15.5" r="0.75" fill="currentColor" />
+  </svg>
+)
+
+// ── Field ─────────────────────────────────────────────────────────────────────
 
 interface FieldProps {
-  id: string
-  label: string
-  type?: string
-  value: string
-  onChange: (v: string) => void
-  autoComplete?: string
-  disabled?: boolean
-  action?: React.ReactNode
+  id: string; label: string; type?: string; value: string
+  onChange: (v: string) => void; autoComplete?: string
+  disabled?: boolean; action?: React.ReactNode
 }
 
 const Field = ({ id, label, type = 'text', value, onChange, autoComplete, disabled, action }: FieldProps) => (
-  <div className="flex flex-col gap-1">
-    <label htmlFor={id} className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/70">
+  <div className="flex flex-col gap-1.5">
+    <label htmlFor={id} className="font-mono text-[10px] tracking-[0.35em] uppercase text-muted-foreground/60">
       {label}
     </label>
     <div className="relative">
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        autoComplete={autoComplete}
-        disabled={disabled}
+      <input id={id} type={type} value={value} onChange={e => onChange(e.target.value)}
+        autoComplete={autoComplete} disabled={disabled}
         className={cn(
-          'w-full h-10 px-3 bg-muted border border-border',
-          'text-foreground text-xs font-mono',
-          'placeholder:text-muted-foreground/40',
-          'focus:outline-none focus:border-primary/60',
-          'disabled:opacity-40 transition-colors',
+          'w-full h-10 px-3 bg-background/80 border border-border/70',
+          'text-foreground text-[13px] font-mono',
+          'focus:outline-none focus:border-primary/60 transition-all duration-150',
+          'disabled:opacity-40',
           action && 'pr-20',
         )}
       />
-      {action && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-          {action}
-        </div>
-      )}
+      {action && <div className="absolute right-3 top-1/2 -translate-y-1/2">{action}</div>}
     </div>
   </div>
 )
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Action row ────────────────────────────────────────────────────────────────
+
+interface ActionRowProps {
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+  variant?: 'default' | 'danger'
+}
+
+const ActionRow = ({ icon, label, onClick, variant = 'default' }: ActionRowProps) => (
+  <button type="button" onClick={onClick}
+    className={cn(
+      'w-full flex items-center gap-3 px-3 py-3',
+      'border transition-all duration-200 group',
+      variant === 'danger'
+        ? 'border-destructive/25 bg-destructive/[0.03] text-destructive/70 hover:border-destructive/50 hover:bg-destructive/[0.08] hover:text-destructive'
+        : 'border-border/50 bg-card/30 text-foreground/70 hover:border-primary/45 hover:bg-primary/[0.05] hover:text-foreground',
+    )}
+  >
+    <span className={cn(
+      'shrink-0 transition-colors duration-200',
+      variant === 'danger' ? 'text-destructive/60 group-hover:text-destructive' : 'text-muted-foreground/60 group-hover:text-primary/80',
+    )}>
+      {icon}
+    </span>
+    <span className="flex-1 text-left font-mono text-[11px] tracking-wide">{label}</span>
+    <span className={cn(
+      'shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+      variant === 'danger' ? 'text-destructive/60' : 'text-primary/60',
+    )}>
+      <ChevronIcon />
+    </span>
+  </button>
+)
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface AccountSettingsProps {
   email: string
@@ -58,17 +121,13 @@ interface AccountSettingsProps {
   onSignOut: () => void
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) => {
   const [section, setSection] = useState<'main' | 'password' | 'delete'>('main')
-
-  // Password change
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
   const [showPw, setShowPw] = useState(false)
-
-  // Shared
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -81,8 +140,6 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
     catch (err) { setError(err instanceof Error ? err.message : parseAuthError(err)) }
     finally { setLoading(false) }
   }
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,126 +159,73 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
       if (!session) throw new Error(t.notAuthenticated)
       await window.api.deleteAccount(session.access_token)
       await supabase.auth.signOut()
-      // onSignOut will be triggered by the auth state change in useAuth
     })
   }
 
-  // ── Show/hide toggle ──────────────────────────────────────────────────────
-
   const showHideBtn = (
-    <button
-      type="button"
-      onClick={() => setShowPw(s => !s)}
+    <button type="button" onClick={() => setShowPw(s => !s)}
       className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-      aria-label={showPw ? t.hidePassword : t.showPassword}
-    >
+      aria-label={showPw ? t.hidePassword : t.showPassword}>
       {showPw ? t.hidePassword : t.showPassword}
     </button>
   )
 
-  // ── Feedback atom ─────────────────────────────────────────────────────────
-
   const feedback = (
     <>
-      {error && <p role="alert" className="font-mono text-[11px] text-destructive/90 text-center">{error}</p>}
-      {success && <p role="status" className="font-mono text-[11px] text-success/90 text-center">{success}</p>}
+      {error   && <p role="alert"  className="font-mono text-[11px] text-destructive/90">{error}</p>}
+      {success && <p role="status" className="font-mono text-[11px] text-success/90">{success}</p>}
     </>
   )
 
   // ── Sections ──────────────────────────────────────────────────────────────
 
   const renderMain = () => (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
 
-      {/* Email display */}
-      <div className="flex flex-col gap-1">
-        <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/70">
-          {t.emailLabel}
-        </span>
-        <span className="font-mono text-xs text-foreground/80 break-all">{email}</span>
-      </div>
-
-      {/* Security section */}
+      {/* Security */}
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/50">
+        <p className="font-mono text-[9px] tracking-[0.4em] text-muted-foreground/50 uppercase">
           {t.sectionSecurity}
-        </span>
-        <button
-          type="button"
-          onClick={() => { clear(); setPw(''); setPw2(''); setSection('password') }}
-          className={cn(
-            'w-full h-10 px-3 flex items-center justify-between',
-            'bg-muted border border-border text-left',
-            'text-foreground/80 text-xs font-mono',
-            'hover:border-border/80 hover:text-foreground transition-colors',
-          )}
-        >
-          {t.changePasswordBtn}
-          <span className="text-muted-foreground/40">→</span>
-        </button>
+        </p>
+        <ActionRow icon={<LockIcon />} label={t.changePasswordBtn}
+          onClick={() => { clear(); setPw(''); setPw2(''); setSection('password') }} />
       </div>
 
-      {/* Session section */}
+      {/* Session */}
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/50">
+        <p className="font-mono text-[9px] tracking-[0.4em] text-muted-foreground/50 uppercase">
           {t.sectionSession}
-        </span>
-        <button
-          type="button"
-          onClick={onSignOut}
-          className={cn(
-            'w-full h-10 px-3 flex items-center',
-            'bg-muted border border-border text-left',
-            'text-foreground/80 text-xs font-mono',
-            'hover:border-border/80 hover:text-foreground transition-colors',
-          )}
-        >
-          {t.logoutBtn}
-        </button>
+        </p>
+        <ActionRow icon={<LogoutIcon />} label={t.logoutBtn} onClick={onSignOut} />
       </div>
 
-      {/* Danger zone */}
+      {/* Danger */}
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-[10px] tracking-widest uppercase text-destructive/60">
+        <p className="font-mono text-[9px] tracking-[0.4em] text-destructive/55 uppercase">
           {t.sectionDanger}
-        </span>
-        <button
-          type="button"
-          onClick={() => { clear(); setSection('delete') }}
-          className={cn(
-            'w-full h-10 px-3 flex items-center',
-            'bg-muted border border-destructive/30 text-left',
-            'text-destructive/70 text-xs font-mono',
-            'hover:border-destructive/60 hover:text-destructive transition-colors',
-          )}
-        >
-          {t.deleteAccountBtn}
-        </button>
+        </p>
+        <ActionRow icon={<TrashIcon />} label={t.deleteAccountBtn} variant="danger"
+          onClick={() => { clear(); setSection('delete') }} />
       </div>
     </div>
   )
 
   const renderPassword = () => (
     <form onSubmit={handleChangePassword} className="flex flex-col gap-4" noValidate>
-      <Field id="pw-c" label={t.newPasswordLabel} type={showPw ? 'text' : 'password'} value={pw} onChange={setPw}
-        autoComplete="new-password" disabled={loading} action={showHideBtn} />
-      <Field id="pw2-c" label={t.confirmPasswordLabel} type={showPw ? 'text' : 'password'} value={pw2} onChange={setPw2}
-        autoComplete="new-password" disabled={loading} />
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full h-11 bg-primary text-primary-foreground font-display text-lg tracking-[0.12em] uppercase
+      <Field id="pw-c" label={t.newPasswordLabel} type={showPw ? 'text' : 'password'}
+        value={pw} onChange={setPw} autoComplete="new-password" disabled={loading} action={showHideBtn} />
+      <Field id="pw2-c" label={t.confirmPasswordLabel} type={showPw ? 'text' : 'password'}
+        value={pw2} onChange={setPw2} autoComplete="new-password" disabled={loading} />
+      <button type="submit" disabled={loading}
+        className="btn-shine w-full h-10 bg-primary text-primary-foreground
+                   font-display text-base tracking-[0.12em] uppercase
                    hover:bg-primary/90 active:scale-[0.98] transition-all duration-150
-                   disabled:opacity-40 disabled:scale-100"
-      >
+                   disabled:opacity-40 shadow-[0_4px_16px_hsl(var(--primary)/0.2)]">
         {loading ? '…' : t.saveBtn}
       </button>
       {feedback}
-      <button
-        type="button"
-        onClick={() => { clear(); setSection('main') }}
-        className="font-mono text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors tracking-wide"
-      >
+      <button type="button" onClick={() => { clear(); setSection('main') }}
+        className="font-mono text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors tracking-wide">
         {t.cancelBtn}
       </button>
     </form>
@@ -229,103 +233,137 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
 
   const renderDelete = () => (
     <div className="flex flex-col gap-5">
-      {/* Warning icon */}
-      <div className="flex flex-col items-center gap-3 text-center">
-        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true" className="text-destructive/70">
-          <path d="M20 4L37 34H3L20 4Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-          <line x1="20" y1="16" x2="20" y2="24" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          <circle cx="20" cy="29" r="1" fill="currentColor" />
-        </svg>
-        <p className="font-mono text-[11px] text-muted-foreground/70 leading-relaxed max-w-[220px]">
+      {/* Warning card */}
+      <div className="border border-destructive/30 bg-destructive/[0.05] px-4 py-4 flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-destructive/80">
+          <WarnIcon />
+          <span className="font-display text-sm tracking-wide uppercase">{t.deleteAccountBtn}</span>
+        </div>
+        <p className="font-mono text-[11px] text-muted-foreground/70 leading-relaxed">
           {t.deleteWarning}
         </p>
       </div>
 
       {feedback}
 
-      <button
-        type="button"
-        onClick={handleDeleteAccount}
-        disabled={loading}
+      <button type="button" onClick={handleDeleteAccount} disabled={loading}
         className={cn(
-          'w-full h-11 border border-destructive/50',
-          'text-destructive font-display text-base tracking-[0.10em] uppercase',
-          'hover:bg-destructive hover:text-destructive-foreground',
-          'active:scale-[0.98] transition-all duration-150',
-          'disabled:opacity-40 disabled:scale-100',
-        )}
-      >
+          'w-full h-10 border border-destructive/50 font-display text-sm tracking-[0.1em] uppercase',
+          'text-destructive hover:bg-destructive hover:text-destructive-foreground',
+          'active:scale-[0.98] transition-all duration-150 disabled:opacity-40',
+        )}>
         {loading ? '…' : t.deleteConfirmBtn}
       </button>
 
-      <button
-        type="button"
-        onClick={() => { clear(); setSection('main') }}
-        className="font-mono text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors tracking-wide"
-      >
+      <button type="button" onClick={() => { clear(); setSection('main') }}
+        className="font-mono text-[11px] text-muted-foreground/60 hover:text-muted-foreground transition-colors tracking-wide">
         {t.cancelBtn}
       </button>
     </div>
   )
 
-  // ── Title per section ─────────────────────────────────────────────────────
+  // ── Section titles ────────────────────────────────────────────────────────
 
-  const TITLES = {
-    main: t.settingsTitle,
-    password: t.changePasswordBtn.toUpperCase() + '.',
-    delete: t.deleteAccountBtn.toUpperCase() + '.',
+  const SUBTITLES = {
+    main: null,
+    password: t.changePasswordBtn,
+    delete: t.deleteAccountBtn,
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-end"
-      role="dialog"
-      aria-modal="true"
-      aria-label={TITLES[section]}
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-background/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <div className="fixed inset-0 z-40 flex items-center justify-end"
+      role="dialog" aria-modal="true" aria-label={t.settingsTitle}>
 
-      {/* Panel — slides in from right */}
-      <section
-        className="relative z-10 h-full w-[280px] bg-background border-l border-border flex flex-col
-                   animate-slide-in-right overflow-y-auto"
-      >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-background/70 backdrop-blur-sm"
+        onClick={onClose} aria-hidden="true" />
+
+      {/* Panel */}
+      <section className="relative z-10 h-full w-[290px] flex flex-col animate-slide-in-right"
+        style={{ background: 'linear-gradient(180deg, hsl(220,16%,11%) 0%, hsl(220,14%,9%) 100%)' }}>
+
+        {/* Top amber line */}
+        <div className="absolute top-0 left-0 right-0 h-[1.5px]
+                        bg-gradient-to-r from-transparent via-primary/60 to-transparent"
+          aria-hidden="true" />
+
         {/* Panel header */}
-        <div
-          className="h-[38px] shrink-0 flex items-center justify-between px-5 border-b border-border/50"
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground/50">
+        <div className="h-[48px] shrink-0 flex items-center justify-between px-5
+                        border-b border-border/60"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <span className="font-mono text-[10px] tracking-[0.4em] uppercase text-muted-foreground/55">
             {strings.app.title}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-            aria-label={strings.app.closeLabel}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+          <button type="button" onClick={onClose}
+            className="text-muted-foreground/50 hover:text-foreground transition-colors p-1"
+            aria-label={strings.app.closeLabel}>
+            <CloseIcon />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 px-6 py-7 flex flex-col gap-6">
-          <h2 className="font-display text-[32px] leading-[0.9] text-foreground uppercase">
-            {TITLES[section]}
-          </h2>
-          {section === 'main' && renderMain()}
-          {section === 'password' && renderPassword()}
-          {section === 'delete' && renderDelete()}
+        {/* User card */}
+        <div className="px-5 py-5 border-b border-border/40"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <div className="flex items-center gap-3">
+            {/* Avatar */}
+            <div className="w-11 h-11 rounded-full shrink-0 flex items-center justify-center
+                            bg-primary/20 border-2 border-primary/40
+                            shadow-[0_0_16px_hsl(var(--primary)/0.15)]">
+              <span className="font-display text-[22px] leading-none text-primary uppercase">
+                {email.charAt(0)}
+              </span>
+            </div>
+            {/* Info */}
+            <div className="min-w-0">
+              <p className="font-mono text-[11px] text-foreground/85 truncate" title={email}>
+                {email}
+              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success/70" aria-hidden="true" />
+                <span className="font-mono text-[9px] text-muted-foreground/55 tracking-widest uppercase">
+                  conta ativa
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-6"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+
+          {/* Sub-section title when not on main */}
+          {section !== 'main' && (
+            <div className="flex items-center gap-2 mb-5">
+              <button type="button" onClick={() => { clear(); setSection('main') }}
+                className="font-mono text-[10px] text-muted-foreground/55 hover:text-muted-foreground
+                           transition-colors tracking-wide">
+                ←
+              </button>
+              <span className="font-display text-[22px] leading-none text-foreground uppercase">
+                {SUBTITLES[section]}
+              </span>
+            </div>
+          )}
+
+          {section === 'main'     && renderMain()}
+          {section === 'password' && renderPassword()}
+          {section === 'delete'   && renderDelete()}
+        </div>
+
+        {/* Version footer */}
+        <div className="shrink-0 px-5 py-3 border-t border-border/30 flex items-center justify-between"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <span className="font-mono text-[9px] text-muted-foreground/40 tracking-widest uppercase">
+            CutPilot Sync
+          </span>
+          <span className="font-mono text-[9px] text-muted-foreground/40 tracking-widest">
+            v{__APP_VERSION__}
+          </span>
+        </div>
+
       </section>
     </div>
   )

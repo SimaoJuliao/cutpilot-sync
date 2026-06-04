@@ -11,7 +11,7 @@ const WAVE_HEIGHTS = [0.3, 0.6, 1, 0.8, 0.5, 0.9, 0.4, 0.7, 1, 0.6, 0.35, 0.75, 
 const WAVE_DELAYS = [0, 0.15, 0.3, 0.45, 0.6, 0.18, 0.48, 0.72, 0.1, 0.38, 0.55, 0.2, 0.65, 0.42]
 
 const Waveform = ({ active }: { active: boolean }) => (
-  <div className="flex items-center gap-[3px] h-8" aria-hidden="true">
+  <div className="flex items-center gap-[4px] h-11" aria-hidden="true">
     {WAVE_HEIGHTS.map((h, i) => (
       <span
         key={i}
@@ -31,7 +31,7 @@ const Waveform = ({ active }: { active: boolean }) => (
 // ── Progress ring ─────────────────────────────────────────────────────────────
 
 const Ring = ({ pct, done }: { pct: number; done: boolean }) => {
-  const r = 50
+  const r = 64
   const circ = 2 * Math.PI * r
   const dash = circ * (1 - pct / 100)
 
@@ -44,18 +44,29 @@ const Ring = ({ pct, done }: { pct: number; done: boolean }) => {
       aria-label={`${t.progressAriaPrefix}: ${pct}%`}
       className={`relative inline-flex items-center justify-center ${!done ? 'animate-glow' : ''}`}
     >
-      <svg width="132" height="132" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+      <svg width="168" height="168" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+        {/* Outer glow ring */}
+        <circle cx="84" cy="84" r={r + 9} fill="none"
+          stroke={done ? 'hsl(145 52% 48% / 0.08)' : 'hsl(32 97% 55% / 0.08)'}
+          strokeWidth="8"
+          style={{ transition: 'stroke 0.4s ease' }}
+        />
         {/* Background track */}
-        <circle cx="66" cy="66" r={r} fill="none"
-          stroke="hsl(var(--border) / 0.6)" strokeWidth="3" />
+        <circle cx="84" cy="84" r={r} fill="none"
+          stroke="hsl(var(--border) / 0.5)" strokeWidth="3" />
         {/* Progress arc */}
-        <circle cx="66" cy="66" r={r} fill="none"
+        <circle cx="84" cy="84" r={r} fill="none"
           stroke={done ? 'hsl(var(--success))' : 'hsl(var(--primary))'}
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={dash}
-          style={{ transition: 'stroke-dashoffset 0.55s cubic-bezier(0.4,0,0.2,1), stroke 0.4s ease' }}
+          style={{
+            transition: 'stroke-dashoffset 0.55s cubic-bezier(0.4,0,0.2,1), stroke 0.4s ease',
+            filter: done
+              ? 'drop-shadow(0 0 5px hsl(145 52% 48% / 0.6))'
+              : 'drop-shadow(0 0 5px hsl(32 97% 55% / 0.6))',
+          }}
         />
         {/* Tick marks */}
         {Array.from({ length: 32 }).map((_, i) => {
@@ -64,12 +75,12 @@ const Ring = ({ pct, done }: { pct: number; done: boolean }) => {
           const major = i % 4 === 0
           return (
             <line key={i}
-              x1={66 + (62 + (major ? 1 : 0)) * cos}
-              y1={66 + (62 + (major ? 1 : 0)) * sin}
-              x2={66 + 66 * cos}
-              y2={66 + 66 * sin}
+              x1={84 + (80 + (major ? 1 : 0)) * cos}
+              y1={84 + (80 + (major ? 1 : 0)) * sin}
+              x2={84 + 84 * cos}
+              y2={84 + 84 * sin}
               stroke={`hsl(var(--border) / ${major ? 0.5 : 0.25})`}
-              strokeWidth={major ? 1.2 : 0.8}
+              strokeWidth={major ? 1.4 : 0.9}
             />
           )
         })}
@@ -78,11 +89,11 @@ const Ring = ({ pct, done }: { pct: number; done: boolean }) => {
       {/* Center */}
       <div className="absolute flex flex-col items-center" aria-hidden="true">
         {done ? (
-          <span className="font-display text-4xl text-success">✓</span>
+          <span className="font-display text-5xl text-success">✓</span>
         ) : (
           <>
-            <span className="font-display text-[34px] leading-none text-foreground tabular-nums">{pct}</span>
-            <span className="font-mono text-[9px] text-muted-foreground/40 tracking-widest">%</span>
+            <span className="font-display text-[44px] leading-none text-foreground tabular-nums">{pct}</span>
+            <span className="font-mono text-[10px] text-muted-foreground/50 tracking-widest">%</span>
           </>
         )}
       </div>
@@ -104,13 +115,13 @@ const PhaseSteps = ({ phase, pct }: { phase: ProcessPhase; pct: number }) => (
       return (
         <div key={p} className="flex items-center gap-3">
           {i > 0 && (
-            <div className={`h-px w-8 transition-all duration-500 ${past ? 'bg-primary/40' : 'bg-border/40'}`} />
+            <div className={`h-px w-12 transition-all duration-500 ${past ? 'bg-primary/40' : 'bg-border/40'}`} />
           )}
           <div className={`flex items-center gap-1.5 transition-all duration-300 ${active ? 'opacity-100' : past ? 'opacity-50' : 'opacity-25'
             }`}>
-            <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${active ? 'bg-primary' : past ? 'bg-primary/60' : 'bg-border'
+            <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${active ? 'bg-primary' : past ? 'bg-primary/60' : 'bg-border'
               }`} />
-            <span className="font-mono text-[9px] tracking-widest uppercase text-muted-foreground">
+            <span className="font-mono text-[11px] tracking-widest uppercase text-muted-foreground">
               {p === 'transcribe' ? t.phaseTranscribeShort : p === 'analyse' ? t.phaseAnalyseShort : t.phaseExportShort}
             </span>
           </div>
@@ -173,7 +184,7 @@ const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, onDone }: StepProce
 
   return (
     <section
-      className="flex flex-col items-center justify-center h-full gap-7 animate-fade-up"
+      className="flex flex-col items-center justify-center h-full gap-8 animate-fade-up"
       aria-label="A processar o vídeo"
     >
       {/* Ring */}
@@ -187,11 +198,11 @@ const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, onDone }: StepProce
         role="status"
         aria-live="polite"
         aria-atomic="true"
-        className="text-center space-y-1.5 px-8"
+        className="text-center space-y-2 px-8"
       >
-        <p className="text-foreground/75 text-[13px] font-mono tracking-wide">{msg}</p>
+        <p className="text-foreground/80 text-[15px] font-mono tracking-wide">{msg}</p>
         {isActive && (
-          <p className="text-muted-foreground/35 text-[10px] tracking-widest uppercase">
+          <p className="text-muted-foreground/60 text-[11px] tracking-widest uppercase">
             {t.patience}
           </p>
         )}

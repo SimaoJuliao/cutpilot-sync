@@ -24,9 +24,11 @@ app.setPath('userData', join(app.getPath('appData'), 'CutPilotSync'))
 // Register the cutpilotsync:// protocol so the OS knows to open this app.
 // In dev mode on Windows the app isn't "installed", so we point electron.exe
 // directly at the compiled main entry (out/main/index.js).
+// NOTE: app.getAppPath() is used instead of process.cwd() because Windows
+// launches protocol handlers with cwd=C:\Windows\System32, making cwd unreliable.
 if (!app.isPackaged && process.platform === 'win32') {
   app.setAsDefaultProtocolClient('cutpilotsync', process.execPath, [
-    join(process.cwd(), 'out', 'main', 'index.js'),
+    join(app.getAppPath(), 'out', 'main', 'index.js'),
   ])
 } else {
   app.setAsDefaultProtocolClient('cutpilotsync')
@@ -194,8 +196,9 @@ ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir, webcamP
 ipcMain.handle('open-folder', (_event, folderPath: string) => shell.openPath(folderPath))
 
 ipcMain.handle('check-ffmpeg', async () => {
-  const { execSync } = await import('child_process')
-  try { execSync('ffmpeg -version', { stdio: 'ignore' }); return true }
+  const { execFileSync } = await import('child_process')
+  const { getFFmpegPath } = await import('./pipeline/ffmpeg')
+  try { execFileSync(getFFmpegPath(), ['-version'], { stdio: 'ignore' }); return true }
   catch { return false }
 })
 
@@ -206,16 +209,22 @@ ipcMain.handle('auth:delete-account', async (_event, accessToken: string) => {
   const svcKey = __SUPABASE_SERVICE_ROLE_KEY__
   if (!url || !svcKey) throw new Error('Supabase não configurado no .env')
 
-  // Dynamically import to keep the bundle lean
-  const { createClient } = await import('@supabase/supabase-js')
-  const admin = createClient(url, svcKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
+  // Use fetch directly to avoid Supabase Realtime WebSocket init (Node.js 20 has no native WS)
+
+  // Step 1: resolve user ID from the access token
+  const userRes = await fetch(`${url}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${accessToken}`, apikey: svcKey },
   })
+  if (!userRes.ok) throw new Error('Utilizador não encontrado.')
+  const { id: userId } = await userRes.json() as { id: string }
 
-  // Identify the user from their access token
-  const { data: { user }, error: userErr } = await admin.auth.getUser(accessToken)
-  if (userErr || !user) throw new Error('Utilizador não encontrado.')
-
-  const { error } = await admin.auth.admin.deleteUser(user.id)
-  if (error) throw new Error(error.message)
+  // Step 2: delete via Admin API
+  const deleteRes = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${svcKey}`, apikey: svcKey },
+  })
+  if (!deleteRes.ok) {
+    const err = await deleteRes.json() as { message?: string }
+    throw new Error(err.message ?? 'Erro ao eliminar conta.')
+  }
 })

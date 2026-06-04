@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react'
 import { config } from 'dotenv'
 import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { readFileSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const env = config({ path: resolve(__dirname, '.env') }).parsed ?? {}
+const { version } = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'))
 
 export default defineConfig({
   main: {
@@ -28,6 +30,7 @@ export default defineConfig({
     define: {
       __SUPABASE_URL__: JSON.stringify(env.SUPABASE_URL ?? ''),
       __SUPABASE_ANON_KEY__: JSON.stringify(env.SUPABASE_ANON_KEY ?? ''),
+      __APP_VERSION__: JSON.stringify(version),
     },
     resolve: {
       alias: {

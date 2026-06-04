@@ -17,6 +17,7 @@ import { writeFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, rmdirSyn
 import { join, basename, extname } from 'path'
 import { tmpdir, cpus } from 'os'
 import type { EdlRange, RenderResult, RenderProgress } from '../../../src/renderer/src/types/electron'
+import { getFFmpegPath } from './ffmpeg'
 
 const execFileAsync = promisify(execFile)
 
@@ -32,7 +33,7 @@ type ProgressCallback = (progress: RenderProgress) => void
  */
 const probeEncoder = async (codec: string): Promise<boolean> => {
   try {
-    await execFileAsync('ffmpeg', [
+    await execFileAsync(getFFmpegPath(), [
       '-f', 'lavfi', '-i', 'nullsrc=s=64x64',
       '-vframes', '1',
       '-c:v', codec,
@@ -177,7 +178,7 @@ export const renderVideo = async (
       const pct = 5 + Math.round((i / ranges.length) * (mainSegEnd - 5))
       onProgress?.({ pct, message: `A extrair segmento ${i + 1}/${ranges.length}…` })
 
-      await execFileAsync('ffmpeg', [
+      await execFileAsync(getFFmpegPath(), [
         '-y',
         '-ss', String(r.start),
         '-to', String(r.end),
@@ -201,7 +202,7 @@ export const renderVideo = async (
     )
 
     const concatOut = join(workDir, 'concat_out.mp4')
-    await execFileAsync('ffmpeg', [
+    await execFileAsync(getFFmpegPath(), [
       '-y',
       '-f', 'concat', '-safe', '0',
       '-i', concatList,
@@ -215,7 +216,7 @@ export const renderVideo = async (
     // Pass 1 — measure
     let measureOutput = ''
     await new Promise<void>((resolve, reject) => {
-      const ff = execFile('ffmpeg', [
+      const ff = execFile(getFFmpegPath(), [
         '-i', concatOut,
         '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json',
         '-f', 'null', '-',
@@ -244,7 +245,7 @@ export const renderVideo = async (
 
     // Pass 2 — apply
     onProgress?.({ pct: loudEnd1 + 1, message: 'A aplicar loudnorm…' })
-    await execFileAsync('ffmpeg', [
+    await execFileAsync(getFFmpegPath(), [
       '-y',
       '-i', concatOut,
       '-c:v', 'copy',
@@ -281,7 +282,7 @@ export const renderVideo = async (
           const wcStart = Math.max(0, r.start - offset)
           const wcEnd = Math.max(wcStart + 0.1, r.end - offset)
 
-          await execFileAsync('ffmpeg', [
+          await execFileAsync(getFFmpegPath(), [
             '-y',
             '-ss', String(wcStart),
             '-to', String(wcEnd),
@@ -301,7 +302,7 @@ export const renderVideo = async (
           wcConcatList,
           wcClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n')
         )
-        await execFileAsync('ffmpeg', [
+        await execFileAsync(getFFmpegPath(), [
           '-y',
           '-f', 'concat', '-safe', '0',
           '-i', wcConcatList,

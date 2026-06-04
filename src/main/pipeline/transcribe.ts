@@ -17,6 +17,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import axios from 'axios'
 import type { Transcript, ScribeWord } from '../../../src/renderer/src/types/electron'
+import { getFFmpegPath } from './ffmpeg'
 
 type ProgressCallback = (pct: number) => void
 
@@ -58,7 +59,7 @@ export const transcribeVideo = async (
   const audioPath = join(tmpdir(), `cps_audio_${Date.now()}.wav`)
 
   await new Promise<void>((resolve, reject) => {
-    const ff = spawn('ffmpeg', [
+    const ff = spawn(getFFmpegPath(), [
       '-y',
       '-i', videoPath,
       '-vn',

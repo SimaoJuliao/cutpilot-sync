@@ -17,7 +17,7 @@ export const pt = {
     eyebrow: 'editor de vídeo automático',
     titleLine1: 'O teu vídeo',
     titleLine2: 'editado',
-    titleLine3: 'em segundos',
+    titleLine3: 'em minutos',
     startBtn: 'Começar',
     oneTimeNote: 'não voltarás a ver este ecrã',
 
@@ -44,7 +44,11 @@ export const pt = {
     swapHint: 'clica para trocar',
     ffmpegWarning: 'FFmpeg não encontrado —',
     ffmpegLink: 'instalar aqui',
+    ffmpegBannerTitle: 'FFmpeg não está instalado',
+    ffmpegBannerDesc: 'Necessário para processar vídeos. Instala e reinicia a app.',
+    ffmpegBannerBtn: 'Instalar FFmpeg →',
     startBtn: 'Editar vídeo',
+    selectVideoBtn: 'Seleciona um vídeo',
     // Webcam section
     webcamLabel: 'Câmara',
     webcamOptional: 'opcional',

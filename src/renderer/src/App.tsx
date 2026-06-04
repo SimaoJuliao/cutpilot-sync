@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { strings } from '@i18n'
 import { useApp, useAuth } from '@hooks'
 import {
@@ -45,6 +45,9 @@ const STEP_ORDER = ['upload', 'process', 'done'] as const
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+// macOS traffic lights (~72px) need extra left padding so the wordmark doesn't overlap them
+const isMac = /mac/i.test(navigator.platform)
+
 const App = () => {
   const { user, loading: authLoading, isResetting, finishReset, signOut } = useAuth()
   const {
@@ -54,15 +57,30 @@ const App = () => {
 
   const [showSettings, setShowSettings] = useState(false)
 
+  // Close settings panel whenever auth state changes (login / logout)
+  // Without this, the panel stays open if user signs out then back in
+  useEffect(() => { setShowSettings(false) }, [user?.id])
+
   // ── Loading ────────────────────────────────────────────────────────────────
 
   if (authLoading) {
     return (
-      <div className="h-full flex items-center justify-center relative" aria-busy="true">
+      <div className="h-full flex items-center justify-center relative" aria-busy="true" aria-label="A carregar">
         <Background />
-        <span className="relative z-20 font-mono text-[10px] tracking-widest uppercase text-muted-foreground/30 animate-pulse">
-          …
-        </span>
+        <div className="relative z-20 flex flex-col items-center gap-4">
+          <span className="font-display text-[26px] tracking-[0.35em] text-foreground/50 uppercase">
+            CUTPILOT
+          </span>
+          <div className="flex gap-1.5" aria-hidden="true">
+            {[0, 1, 2].map(i => (
+              <span
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-pulse"
+                style={{ animationDelay: `${i * 0.18}s` }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -74,7 +92,7 @@ const App = () => {
       <div className="h-full flex flex-col relative overflow-hidden">
         <Background />
         <header
-          className="h-[38px] shrink-0 relative z-20"
+          className={`h-[38px] shrink-0 relative z-20 ${isMac ? 'pl-[80px]' : ''}`}
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
           aria-hidden="true"
         />
@@ -96,53 +114,104 @@ const App = () => {
 
       {/* Title bar */}
       <header
-        className="h-[40px] shrink-0 relative z-20 flex items-center justify-between px-5
-                   bg-card/50 backdrop-blur-sm border-b border-border/40"
-        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        className={`h-[48px] shrink-0 relative z-20 flex items-center justify-between
+                   border-b border-border/80
+                   ${isMac ? 'pl-[84px]' : 'pl-4'} pr-3`}
+        style={{
+          WebkitAppRegion: 'drag',
+          background: 'linear-gradient(180deg, hsl(220,16%,12%) 0%, hsl(220,14%,9%) 100%)',
+        } as React.CSSProperties}
       >
-        {/* Wordmark */}
-        <span
-          className="font-mono text-[10px] tracking-[0.35em] text-muted-foreground/50 uppercase select-none"
-          aria-label={strings.app.title}
-        >
-          {strings.app.title}
-        </span>
+        {/* Scanline texture — gives a "broadcast monitor" depth */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.03]"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255,255,255,0.8) 1px, rgba(255,255,255,0.8) 2px)',
+            backgroundSize: '100% 2px',
+          }}
+          aria-hidden="true"
+        />
 
-        {/* Step name — center */}
+        {/* Top amber signal line */}
+        <div
+          className="absolute top-0 left-0 right-0 h-[1.5px]
+                     bg-gradient-to-r from-transparent via-primary/70 to-transparent"
+          aria-hidden="true"
+        />
+
+        {/* LEFT — Split wordmark + live indicator */}
+        <div className="flex items-center gap-3 select-none" aria-label={strings.app.title}>
+          {/* Pulsing live dot */}
+          <div className="relative flex items-center justify-center w-3 h-3 shrink-0" aria-hidden="true">
+            <span className="absolute w-3 h-3 rounded-full bg-primary/20 animate-ping [animation-duration:2.8s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          </div>
+          {/* Typographic split: display + mono */}
+          <div className="flex items-baseline gap-1.5 leading-none">
+            <span className="font-display text-[15px] tracking-[0.25em] text-foreground/90 uppercase">
+              CUTPILOT
+            </span>
+            <span className="font-mono text-[9px] tracking-[0.55em] text-primary/65 uppercase">
+              SYNC
+            </span>
+          </div>
+        </div>
+
+        {/* CENTER — Step label in angular brackets */}
         {showHeader && (
-          <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[10px]
-                           tracking-[0.25em] text-muted-foreground/35 uppercase select-none">
-            {STEP_LABELS[step] ?? ''}
-          </span>
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 select-none">
+            <span className="font-mono text-[10px] text-primary/40 leading-none" aria-hidden="true">⟨</span>
+            <span className="font-mono text-[10px] tracking-[0.3em] text-muted-foreground/70 uppercase">
+              {STEP_LABELS[step] ?? ''}
+            </span>
+            <span className="font-mono text-[10px] text-primary/40 leading-none" aria-hidden="true">⟩</span>
+          </div>
         )}
 
-        {/* Settings */}
+        {/* RIGHT — Account button with user avatar initial */}
         <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             type="button"
             onClick={() => setShowSettings(true)}
-            className="flex items-center gap-1.5 px-2 py-1 rounded
-                       text-muted-foreground/60 hover:text-foreground/80
-                       hover:bg-white/5 active:bg-white/10
-                       transition-all duration-150 group"
+            className="group flex items-center gap-2 h-8 pl-1.5 pr-3
+                       border border-border/50 hover:border-primary/50
+                       hover:bg-primary/[0.06] active:bg-primary/10
+                       transition-all duration-200"
             aria-label={strings.app.accountBtnLabel}
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-              <circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M2 13c0-3.04 2.46-5.5 5.5-5.5S13 9.96 13 13"
-                stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-            </svg>
-            <span className="font-mono text-[9px] tracking-widest uppercase">
+            {/* Icon circle */}
+            <span
+              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0
+                         bg-primary/20 border border-primary/40 text-primary/80
+                         group-hover:bg-primary/30 group-hover:border-primary/65 group-hover:text-primary
+                         transition-all duration-200"
+              aria-hidden="true"
+            >
+              <svg width="11" height="11" viewBox="0 0 15 15" fill="none">
+                <circle cx="7.5" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M2 13c0-3.04 2.46-5.5 5.5-5.5S13 9.96 13 13"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+            </span>
+            {/* Label */}
+            <span className="font-mono text-[9px] tracking-[0.3em] uppercase
+                             text-muted-foreground/65 group-hover:text-foreground/85
+                             transition-colors duration-200">
               {strings.app.accountBtn}
             </span>
           </button>
         </div>
 
-        {/* Progress line — bottom of the header */}
+        {/* BOTTOM — Timeline progress with tick marks */}
         {showHeader && (
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-border/0" aria-hidden="true">
+          <div className="absolute bottom-0 left-0 right-0 h-[3px]" aria-hidden="true">
+            <div className="absolute inset-0 bg-border/25" />
+            {/* Tick marks at 33% and 66% — like a video timeline */}
+            <div className="absolute top-0 bottom-0 left-[33.33%] w-px bg-border/70" />
+            <div className="absolute top-0 bottom-0 left-[66.66%] w-px bg-border/70" />
+            {/* Fill */}
             <div
-              className="h-full bg-primary/40 transition-all duration-700 ease-out"
+              className="absolute inset-y-0 left-0 bg-primary/75 transition-all duration-700 ease-out progress-glow"
               style={{ width: `${stepIdx === 0 ? 33 : stepIdx === 1 ? 66 : 100}%` }}
             />
           </div>
