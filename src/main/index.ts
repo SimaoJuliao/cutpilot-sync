@@ -206,16 +206,22 @@ ipcMain.handle('auth:delete-account', async (_event, accessToken: string) => {
   const svcKey = __SUPABASE_SERVICE_ROLE_KEY__
   if (!url || !svcKey) throw new Error('Supabase não configurado no .env')
 
-  // Dynamically import to keep the bundle lean
-  const { createClient } = await import('@supabase/supabase-js')
-  const admin = createClient(url, svcKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
+  // Use fetch directly to avoid Supabase Realtime WebSocket init (Node.js 20 has no native WS)
+
+  // Step 1: resolve user ID from the access token
+  const userRes = await fetch(`${url}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${accessToken}`, apikey: svcKey },
   })
+  if (!userRes.ok) throw new Error('Utilizador não encontrado.')
+  const { id: userId } = await userRes.json() as { id: string }
 
-  // Identify the user from their access token
-  const { data: { user }, error: userErr } = await admin.auth.getUser(accessToken)
-  if (userErr || !user) throw new Error('Utilizador não encontrado.')
-
-  const { error } = await admin.auth.admin.deleteUser(user.id)
-  if (error) throw new Error(error.message)
+  // Step 2: delete via Admin API
+  const deleteRes = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${svcKey}`, apikey: svcKey },
+  })
+  if (!deleteRes.ok) {
+    const err = await deleteRes.json() as { message?: string }
+    throw new Error(err.message ?? 'Erro ao eliminar conta.')
+  }
 })

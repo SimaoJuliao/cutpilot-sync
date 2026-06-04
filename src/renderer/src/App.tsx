@@ -45,6 +45,9 @@ const STEP_ORDER = ['upload', 'process', 'done'] as const
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+// macOS traffic lights (~72px) need extra left padding so the wordmark doesn't overlap them
+const isMac = /mac/i.test(navigator.platform)
+
 const App = () => {
   const { user, loading: authLoading, isResetting, finishReset, signOut } = useAuth()
   const {
@@ -74,7 +77,7 @@ const App = () => {
       <div className="h-full flex flex-col relative overflow-hidden">
         <Background />
         <header
-          className="h-[38px] shrink-0 relative z-20"
+          className={`h-[38px] shrink-0 relative z-20 ${isMac ? 'pl-[80px]' : ''}`}
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
           aria-hidden="true"
         />
@@ -94,10 +97,11 @@ const App = () => {
     <div className="h-full flex flex-col relative overflow-hidden">
       <Background />
 
-      {/* Title bar */}
+      {/* Title bar — extra left padding on macOS for traffic light buttons */}
       <header
-        className="h-[40px] shrink-0 relative z-20 flex items-center justify-between px-5
-                   bg-card/50 backdrop-blur-sm border-b border-border/40"
+        className={`h-[40px] shrink-0 relative z-20 flex items-center justify-between pr-5
+                   bg-card/50 backdrop-blur-sm border-b border-border/40
+                   ${isMac ? 'pl-[80px]' : 'pl-5'}`}
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         {/* Wordmark */}

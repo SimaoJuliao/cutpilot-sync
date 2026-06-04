@@ -17,7 +17,7 @@ export const pt = {
     eyebrow: 'editor de vídeo automático',
     titleLine1: 'O teu vídeo',
     titleLine2: 'editado',
-    titleLine3: 'em segundos',
+    titleLine3: 'em minutos',
     startBtn: 'Começar',
     oneTimeNote: 'não voltarás a ver este ecrã',
 
