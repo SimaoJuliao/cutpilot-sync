@@ -11,22 +11,35 @@
  */
 
 import type { Transcript, ScribeWord } from '../../../src/renderer/src/types/electron'
+import { groupPhrases } from './phrases'
 
 // ── Retake detection helpers ────────────────────────────────────────────────
 
+/** Strip punctuation from a single token, keeping accented PT/EN letters. */
+const normWord = (text: string): string =>
+  text.toLowerCase().replace(/[^\wáéíóúãõâêîôûàçüñ]/g, '').trim()
+
 /** Normalise the first N words of a phrase for prefix-matching. */
-const prefixKey = (phrase: ScribeWord[], n = 4): string =>
+const prefixKey = (phrase: ScribeWord[], n = 3): string =>
   phrase
     .slice(0, Math.min(n, phrase.length))
-    .map(w =>
-      w.text
-        .toLowerCase()
-        // strip punctuation but keep accented PT/EN letters
-        .replace(/[^\wáéíóúãõâêîôûàçüñ]/g, '')
-        .trim()
-    )
+    .map(w => normWord(w.text))
     .filter(Boolean)
     .join(' ')
+
+// Words that, when a phrase ENDS on them, strongly signal a false start /
+// self-interruption — the speaker bailed out and (usually) restarts after.
+const FALSE_START_ENDINGS = new Set([
+  'não', 'nao', 'épá', 'epá', 'epa', 'espera', 'pera', 'opa', 'poxa', 'pá', 'pa',
+  'enganeime', 'enganei', 'esquece', 'calma', 'deixa', 'caramba', 'bolas',
+])
+
+/** True when the phrase looks like an aborted attempt (ends on a bail-out word). */
+const isFalseStart = (phrase: ScribeWord[]): boolean => {
+  if (phrase.length < 2) return false   // too short to judge
+  const last = normWord(phrase[phrase.length - 1].text)
+  return FALSE_START_ENDINGS.has(last)
+}
 
 // ── Main export ─────────────────────────────────────────────────────────────
 
@@ -38,23 +51,9 @@ export const buildPrompt = (
   const words = transcript.words.filter(w => w.type !== 'spacing')
 
   // ── 1. Group words into phrase-lines ──────────────────────────────────────
-  // Break on silence ≥ 0.5s OR speaker change (same rule as video-use skill)
-  const phrases: ScribeWord[][] = []
-  let current: ScribeWord[] = []
-
-  for (const w of words) {
-    if (current.length === 0) { current.push(w); continue }
-
-    const prev = current[current.length - 1]
-    const gap = w.start - prev.end
-    const speakerChanged = w.speaker !== undefined
-      && prev.speaker !== undefined
-      && w.speaker !== prev.speaker
-
-    if (gap >= 0.5 || speakerChanged) { phrases.push(current); current = [w] }
-    else { current.push(w) }
-  }
-  if (current.length > 0) phrases.push(current)
+  // Break on silence ≥ PHRASE_GAP OR speaker change. Shared with refineRanges so
+  // the units Claude reasons about are exactly the units we cut.
+  const phrases = groupPhrases(words)
 
   // ── 2. Detect retake chains ───────────────────────────────────────────────
   // A retake chain = group of phrases with the same 4-word prefix where each
@@ -108,7 +107,10 @@ export const buildPrompt = (
     const e = phrase[phrase.length - 1].end
     const spk = phrase[0].speaker !== undefined ? `S${phrase[0].speaker} ` : ''
     const text = phrase.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim()
-    const flag = retakeIdx.has(i) ? '  ←RETAKE' : ''
+    // RETAKE takes priority over FALSE-START when both apply
+    const flag = retakeIdx.has(i)
+      ? '  ←RETAKE'
+      : isFalseStart(phrase) ? '  ←FALSE-START' : ''
 
     lines.push(`[${s.toFixed(3)} → ${e.toFixed(3)}] ${spk} ${text}${flag}`)
 
@@ -129,19 +131,36 @@ export const buildPrompt = (
   const totalMin = Math.floor(totalSec / 60)
   const totalDuration = `${totalMin}m ${totalSec % 60}s`
 
-  // ── 4. System prompt ──────────────────────────────────────────────────────
-  return `You are editing a ${language.toUpperCase()} talking-head video. Produce a tight, clean cut by selecting the best continuous ranges to keep.
-
-SOURCE: "${videoName}" — raw duration ~${totalDuration}
+  // ── 4. Dynamic user message (rules are in STATIC_RULES, sent as cached system) ─
+  return `SOURCE: "${videoName}" — raw duration ~${totalDuration} | Language: ${language.toUpperCase()}
 Typical talking-head cleanup keeps 25–35% of raw. If your total seems above 40%, you are keeping too much — tighten retake sections first.
+
+TRANSCRIPT:
+${transcriptBlock}
+
+JSON array now:`
+}
+
+// Exported separately so callClaude can send it as a cached system block.
+// Keep this the sole source of truth for the editing rules — do not duplicate in buildPrompt.
+export const STATIC_RULES = `You are an expert talking-head video editor. Produce a tight, clean cut by selecting the best continuous ranges to keep.
 
 Format: [start → end] Sx  spoken text   (Sx = speaker; times are decimal seconds — copy exactly)
 
-━━━ RETAKE LINES ━━━
+━━━ FLAGGED LINES ━━━
 
-Lines marked ←RETAKE are repeat attempts: the speaker started the same sentence again after a previous try. These MUST be omitted from your kept ranges — never include a ←RETAKE line.
+Lines marked ←RETAKE are repeat attempts: the speaker started the same sentence again after a previous try. These MUST be omitted — never include a ←RETAKE line.
   - When you skip a RETAKE, also check the phrase immediately AFTER it: if it only makes sense as the continuation/completion of the RETAKE's sentence (and that continuation is available cleanly elsewhere later), cut it too.
   - Exception: if the phrase after the RETAKE is a standalone, self-contained, punchy sentence that stands on its own, you may keep it.
+
+Lines marked ←FALSE-START are aborted attempts: the speaker bailed out mid-sentence (ended on "não", "épá", "espera", "pera", etc.). These MUST be omitted — never include a ←FALSE-START line.
+
+CATCH WHAT THE FLAGS MISS — the detector is not perfect. Actively look for repetitions and self-corrections that have NO flag:
+  - Two nearby phrases expressing the SAME idea with different wording (a rephrase). Keep ONLY the later, cleaner version; cut the earlier one — even if the opening words differ.
+  - A phrase that restates something already said cleanly moments before → cut the weaker/earlier one.
+  - Immediate word stutters inside a phrase ("o o o vídeo", "porque porque") — prefer a later clean delivery of the same line if one exists.
+  - A short phrase that trails off and is immediately followed by a fuller version of the same thought → keep the fuller one only.
+When two clean versions cover the same beat, ALWAYS keep the later, more complete one.
 
 ━━━ CUT CRAFT RULES ━━━
 
@@ -150,7 +169,8 @@ WARM-UP & SETUP (cut aggressively)
 - Phrases where the speaker addresses the editor/camera: "André, depois fazes o corte", "foca na minha cara", "passa esta parte quando eu", "esta parte era só a minha cara", "tenho que repetir aquela parte", "pera lá" (self-correction mid-setup) → CUT.
 
 FALSE STARTS & RETAKE CHAINS
-- ←RETAKE lines are already detected for you. But there may be single-attempt false starts not caught by the detector: a phrase that ends with "épá!", "não", "espera", "enganei-me", "poxa", or cuts off mid-thought → CUT that phrase.
+- ←RETAKE and ←FALSE-START lines are pre-detected — always omit them (see FLAGGED LINES above).
+- Still scan for UNFLAGGED false starts: a phrase that cuts off mid-thought, or restarts an idea with slightly different words → CUT the aborted/earlier version.
 - When in doubt whether two nearby clean versions cover the same beat, keep the LATER, more complete one and cut the earlier shorter version.
 
 SILENCE GAPS
@@ -184,10 +204,4 @@ Output ONLY a raw JSON array — no markdown, no explanation, no code fences.
 Each item: {"start": 14.370, "end": 69.100, "label": "one short description"}
 - start/end must be exact decimal seconds from the timestamps below
 - List only ranges to KEEP (everything else is cut)
-- Last item: {"start": -1, "end": -1, "label": "total kept: Xs"}
-
-TRANSCRIPT:
-${transcriptBlock}
-
-JSON array now:`
-}
+- Last item: {"start": -1, "end": -1, "label": "total kept: Xs"}`

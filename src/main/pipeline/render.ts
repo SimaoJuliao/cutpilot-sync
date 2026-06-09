@@ -18,6 +18,7 @@ import { join, basename, extname } from 'path'
 import { tmpdir, cpus } from 'os'
 import type { EdlRange, RenderResult, RenderProgress } from '../../../src/renderer/src/types/electron'
 import { getFFmpegPath } from './ffmpeg'
+import { snapToSilence } from './snapToSilence'
 
 const execFileAsync = promisify(execFile)
 
@@ -148,6 +149,11 @@ export const renderVideo = async (
     throw new Error(`EDL inválido: ${msg}`)
   }
 
+  // Snap cut boundaries to real audio silence so cuts never land mid-word.
+  // Ground-truth fix for word clipping caused by imprecise transcript timestamps.
+  onProgress?.({ pct: 4, message: 'A analisar o áudio…' })
+  ranges = await snapToSilence(ranges, videoPath, getFFmpegPath())
+
   // Scale factors depend on whether we also have a webcam pass
   const hasWebcam = !!webcamPath
   // Main video occupies 5→75% (with webcam) or 5→92% (without)
@@ -178,11 +184,22 @@ export const renderVideo = async (
       const pct = 5 + Math.round((i / ranges.length) * (mainSegEnd - 5))
       onProgress?.({ pct, message: `A extrair segmento ${i + 1}/${ranges.length}…` })
 
+      // Fast + accurate seek: a coarse INPUT seek to ~1s before the target gets
+      // us near the cut quickly (jumps to the nearest keyframe ≤ seekStart), then
+      // a fine OUTPUT seek decodes the remainder to land sample-accurately on the
+      // exact start — this avoids clipping word onsets. `-t duration` (output)
+      // sets the exact length, removing the ambiguity of input-side `-to`.
+      const PREROLL = 1.0
+      const seekStart = Math.max(0, r.start - PREROLL)
+      const fineOffset = r.start - seekStart
+      const duration = r.end - r.start
+
       await execFileAsync(getFFmpegPath(), [
         '-y',
-        '-ss', String(r.start),
-        '-to', String(r.end),
+        '-ss', String(seekStart),   // coarse input seek (fast, keyframe-aligned)
         '-i', videoPath,
+        '-ss', String(fineOffset),  // fine output seek (accurate, decodes remainder)
+        '-t', String(duration),     // exact segment length
         ...encoder.videoArgs,
         // Re-encode video (NOT stream-copy) so each segment gets clean timestamps
         // starting from 0. Stream-copy preserves the original source timestamps,
@@ -282,11 +299,17 @@ export const renderVideo = async (
           const wcStart = Math.max(0, r.start - offset)
           const wcEnd = Math.max(wcStart + 0.1, r.end - offset)
 
+          // Same fast + accurate seek as the main pass (see above)
+          const wcSeekStart = Math.max(0, wcStart - 1.0)
+          const wcFineOffset = wcStart - wcSeekStart
+          const wcDuration = wcEnd - wcStart
+
           await execFileAsync(getFFmpegPath(), [
             '-y',
-            '-ss', String(wcStart),
-            '-to', String(wcEnd),
+            '-ss', String(wcSeekStart),
             '-i', webcamPath,
+            '-ss', String(wcFineOffset),
+            '-t', String(wcDuration),
             ...encoder.videoArgs,
             // Re-encode webcam (NOT stream-copy) so cuts are frame-accurate.
             // Stream-copy snaps to keyframes which differ between the two cameras,

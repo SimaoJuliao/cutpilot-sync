@@ -6,10 +6,12 @@ import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import type { BuildPromptOptions, RenderOptions } from '../renderer/src/types/electron'
 
-import { transcribeVideo } from './pipeline/transcribe'
+import { transcribeVideo, assertHasAudio } from './pipeline/transcribe'
 import { getCachedTranscription, cacheTranscription } from './pipeline/transcriptionCache'
 import { buildPrompt } from './pipeline/buildPrompt'
 import { callClaude } from './pipeline/callClaude'
+import { refineRanges } from './pipeline/refineRanges'
+import { trimHeadRepeats } from './pipeline/trimRepeats'
 import { renderVideo } from './pipeline/render'
 
 // ── Single instance + deep link setup ──────────────────────────────────────
@@ -192,6 +194,9 @@ ipcMain.handle('transcribe', async (_event, videoPath: string) => {
   const apiKey = __DEEPGRAM_API_KEY__
   if (!apiKey) throw new Error('DEEPGRAM_API_KEY não configurada — verifica o .env e reinicia')
 
+  // Guard runs before the cache — even a cache hit must not bypass this check
+  await assertHasAudio(videoPath)
+
   // Return cached result if the video hasn't changed — saves quota and time
   const cached = getCachedTranscription(videoPath)
   if (cached) {
@@ -203,6 +208,10 @@ ipcMain.handle('transcribe', async (_event, videoPath: string) => {
     const result = await transcribeVideo(videoPath, apiKey, (pct) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send('transcribe-progress', pct)
     })
+    const wordCount = result.words.filter(w => w.type === 'word').length
+    if (wordCount === 0) {
+      throw new Error('Não foi detetado discurso neste vídeo — verifica se o microfone estava ativo')
+    }
     cacheTranscription(videoPath, result)
     return result
   } catch (err) { console.error('[transcribe]', err); throw err }
@@ -213,9 +222,17 @@ ipcMain.handle('call-claude', async (_event, { transcript, videoName, language }
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY não configurada — verifica o .env e reinicia')
   const prompt = buildPrompt(transcript, videoName, language)
   try {
-    return await callClaude(prompt, apiKey, (chunk) => {
+    const ranges = await callClaude(prompt, apiKey, (chunk) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send('claude-progress', chunk)
     })
+    // Tighten Claude's coarse ranges to whole-phrase boundaries using word-level
+    // timestamps — removes residual silence and prevents mid-sentence clipping.
+    const refined = refineRanges(ranges, transcript.words)
+    // Drop intra-phrase opening repetitions Claude couldn't cut (only had phrase
+    // timestamps): "O grupo… O grupo… que…" → keep the final copy.
+    const deduped = trimHeadRepeats(refined, transcript.words)
+    console.log(`[call-claude] ${ranges.length} ranges → ${refined.length} refined → trimmed repeats`)
+    return deduped
   } catch (err) { console.error('[call-claude]', err); throw err }
 })
 

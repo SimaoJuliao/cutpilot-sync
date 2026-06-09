@@ -22,21 +22,32 @@ const friendlyError = (raw: string): string => {
   // Always log the raw error so devs can debug in the console
   console.error('[pipeline error]', raw)
 
+  // Electron IPC wraps main-process errors with a prefix like:
+  // "Error invoking remote method 'transcribe': Error: <actual message>"
+  // Strip it so the checks below work on the original message.
+  const clean = raw.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+
   // If the main process already produced a friendly Portuguese message, pass it
   // through unchanged — no need to replace it with something more generic.
   // We detect this by checking for known prefixes thrown by our pipeline modules.
   if (
-    raw.startsWith('Limite de transcrição') ||
-    raw.startsWith('GROQ_API_KEY') ||
-    raw.startsWith('ANTHROPIC_API_KEY') ||
-    raw.startsWith('Claude não retornou') ||
-    raw.startsWith('A resposta não contém') ||
-    raw.startsWith('Segmentos sem campos') ||
-    raw.startsWith('EDL inválido')
-  ) return raw
+    clean.startsWith('Limite de transcrição') ||
+    clean.startsWith('GROQ_API_KEY') ||
+    clean.startsWith('ANTHROPIC_API_KEY') ||
+    clean.startsWith('DEEPGRAM_API_KEY') ||
+    clean.startsWith('Créditos Deepgram') ||
+    clean.startsWith('Limite Deepgram') ||
+    clean.startsWith('Claude não retornou') ||
+    clean.startsWith('A resposta não contém') ||
+    clean.startsWith('Segmentos sem campos') ||
+    clean.startsWith('EDL inválido') ||
+    clean.startsWith('Este vídeo não tem faixa') ||
+    clean.startsWith('O áudio deste vídeo é completamente') ||
+    clean.startsWith('Não foi detetado discurso')
+  ) return clean
 
   // Try to extract a JSON error body (Anthropic / Groq may embed JSON in the message)
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  const jsonMatch = clean.match(/\{[\s\S]*\}/)
   if (jsonMatch) {
     try {
       const body = JSON.parse(jsonMatch[0]) as Record<string, unknown>
@@ -60,7 +71,7 @@ const friendlyError = (raw: string): string => {
     } catch { /* not valid JSON, fall through to string matching */ }
   }
 
-  const r = raw.toLowerCase()
+  const r = clean.toLowerCase()
 
   // Our own pipeline errors (fallback — should normally be caught by the prefix check above)
   if (r.includes('a resposta não contém') || r.includes('segmentos válidos'))
@@ -185,6 +196,7 @@ const useStepProcess = (
 
     run().catch((e: unknown) => {
       const raw = e instanceof Error ? e.message : String(e)
+      console.log('[pipeline catch] raw error:', JSON.stringify(raw))
       setError(friendlyError(raw))
       setPhase('error')
     })

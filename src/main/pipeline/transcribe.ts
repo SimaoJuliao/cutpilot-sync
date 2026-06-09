@@ -48,6 +48,51 @@ type DeepgramResponse = {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
+/**
+ * Returns true if the file has at least one audio stream.
+ * Uses ffmpeg -i (header-only probe, no processing) — fast regardless of file size.
+ * Exported so index.ts can call it before the transcription cache check.
+ */
+export const assertHasAudio = async (videoPath: string): Promise<void> => {
+  // ── 1. Check for audio stream presence ──────────────────────────────────
+  const hasAudioStream = await new Promise<boolean>((resolve) => {
+    const ff = spawn(getFFmpegPath(), ['-i', videoPath])
+    let stderr = ''
+    ff.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
+    ff.on('close', () => resolve(stderr.includes('Audio:')))
+    ff.on('error', () => resolve(false))
+  })
+
+  if (!hasAudioStream) {
+    throw new Error('Este vídeo não tem faixa de áudio — grava com microfone ativo e tenta novamente')
+  }
+
+  // ── 2. Check that the audio isn't completely silent (volumedetect) ───────
+  // Runs ffmpeg over the audio-only track — fast even for long files.
+  // max_volume below -80 dB = inaudible / camera mic noise / no speech.
+  const maxVolumeDb = await new Promise<number>((resolve) => {
+    const ff = spawn(getFFmpegPath(), [
+      '-i', videoPath,
+      '-vn',                    // skip video stream
+      '-af', 'volumedetect',
+      '-f', 'null', '-',
+    ])
+    let stderr = ''
+    ff.stderr.on('data', (d: Buffer) => { stderr += d.toString() })
+    ff.on('close', () => {
+      const match = stderr.match(/max_volume:\s*([-\d.]+)\s*dB/)
+      resolve(match ? parseFloat(match[1]) : 0)
+    })
+    ff.on('error', () => resolve(0)) // can't detect — let Deepgram decide
+  })
+
+  console.log('[assertHasAudio] max_volume:', maxVolumeDb, 'dB')
+
+  if (maxVolumeDb < -80) {
+    throw new Error('O áudio deste vídeo é completamente silencioso — verifica se o microfone estava ativo')
+  }
+}
+
 export const transcribeVideo = async (
   videoPath: string,
   apiKey: string,
