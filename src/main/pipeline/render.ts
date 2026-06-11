@@ -13,7 +13,7 @@
 
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { writeFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, rmdirSync, renameSync } from 'fs'
+import { writeFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, rmdirSync } from 'fs'
 import { join, basename, extname } from 'path'
 import { tmpdir, cpus } from 'os'
 import type { EdlRange, RenderResult, RenderProgress, PipPosition } from '../../../src/renderer/src/types/electron'
@@ -321,53 +321,29 @@ export const renderVideo = async (
       } catch { /* use default filter */ }
     }
 
-    // Pass 2 — copy the frame-locked video, apply loudnorm to the muxed audio
-    onProgress?.({ pct: loudEnd1 + 1, message: 'A aplicar loudnorm…' })
-    await execFileAsync(getFFmpegPath(), [
-      '-y',
-      '-i', videoConcat,
-      '-i', audioConcat,
-      '-map', '0:v:0',
-      '-map', '1:a:0',
-      '-c:v', 'copy',
-      '-af', loudnormFilter,
-      '-c:a', 'aac', '-b:a', '192k',
-      outputPath,
-    ])
-
-    const totalDuration = ranges.reduce((sum, r) => sum + (r.end - r.start), 0)
-
-    // ── 6. Webcam pass (optional) ─────────────────────────────────────────────
-    let webcamOutputPath: string | undefined
-    if (webcamPath) {
+    // ── Helper: cut the webcam to frame-exact segments and concat to `outPath` ──
+    // Used by both output modes. Each webcam segment is cut to the SAME duration as
+    // the main video's frame-exact segment (identical frame count when the cameras
+    // share a frame rate — the usual case), keeping the webcam locked to the main
+    // video and therefore to the audio.
+    const buildWebcamConcat = async (outPath: string, basePct: number): Promise<void> => {
       const offset = syncOffsetSec ?? 0
-      const wcFps = await detectFps(webcamPath)
+      const wcFps = await detectFps(webcamPath!)
       console.log(`[render] webcam fps: ${wcFps.num}/${wcFps.den} (${wcFps.value.toFixed(4)})`)
-      const wcWorkDir = join(tmpdir(), `cps_render_wc_${Date.now()}`)
-      const wcClipsDir = join(wcWorkDir, 'clips')
+      const wcClipsDir = join(workDir, 'wc_clips')
       mkdirSync(wcClipsDir, { recursive: true })
-
-      const wcBase = basename(webcamPath, extname(webcamPath))
-      webcamOutputPath = join(outputDir, `${wcBase}_editado.mp4`)
       const wcClipPaths: string[] = []
-      const wcConcatList: string = join(wcWorkDir, 'concat.txt')
+      const wcConcatList = join(workDir, 'wcconcat.txt')
 
       try {
         for (let i = 0; i < ranges.length; i++) {
           const r = ranges[i]
-          const clip = join(wcClipsDir, `seg_${String(i).padStart(3, '0')}.mp4`)
+          const clip = join(wcClipsDir, `wc_${String(i).padStart(3, '0')}.mp4`)
           wcClipPaths.push(clip)
 
-          const pct = loudEnd2 + 1 + Math.round((i / ranges.length) * 14)
-          onProgress?.({ pct, message: `A cortar câmara ${i + 1}/${ranges.length}…` })
+          onProgress?.({ pct: basePct + Math.round((i / ranges.length) * 12), message: `A cortar câmara ${i + 1}/${ranges.length}…` })
 
-          // Apply sync offset: shift timestamps so webcam aligns with screen recording
           const wcStart = Math.max(0, r.start - offset)
-
-          // Cut the webcam to the SAME duration as the main video's frame-exact
-          // segment. When both cameras share a frame rate (the usual case) this is
-          // the identical frame count, keeping the webcam frame-locked to the main
-          // video — and therefore in sync with the audio.
           const segFrames = Math.max(1, Math.round((r.end - r.start) * fps.value))
           const segDur = segFrames * fps.den / fps.num
           const wcFrames = Math.max(1, Math.round(segDur * wcFps.value))
@@ -375,76 +351,82 @@ export const renderVideo = async (
           await execFileAsync(getFFmpegPath(), [
             '-y',
             '-ss', String(wcStart),
-            '-i', webcamPath,
+            '-i', webcamPath!,
             '-frames:v', String(wcFrames),
             ...encoder.videoArgs,
-            // Re-encode webcam (NOT stream-copy) so cuts are frame-accurate.
-            // Stream-copy snaps to keyframes which differ between the two cameras,
-            // causing the webcam to drift out of sync with the main video.
-            '-an',             // no audio stream
+            // Re-encode (NOT stream-copy) so cuts are frame-accurate; stream-copy
+            // snaps to keyframes that differ between cameras and breaks sync.
+            '-an',
             '-avoid_negative_ts', 'make_zero',
             clip,
           ])
         }
-
-        onProgress?.({ pct: 97, message: 'A juntar câmara…' })
-        writeFileSync(
-          wcConcatList,
-          wcClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n')
-        )
+        writeFileSync(wcConcatList, wcClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'))
         await execFileAsync(getFFmpegPath(), [
-          '-y',
-          '-f', 'concat', '-safe', '0',
-          '-i', wcConcatList,
-          '-c', 'copy',
-          webcamOutputPath,
+          '-y', '-f', 'concat', '-safe', '0', '-i', wcConcatList, '-c', 'copy', outPath,
         ])
       } finally {
-        // Best-effort cleanup of webcam temp dir
         try { wcClipPaths.forEach((f) => unlinkSync(f)) } catch { /* skip */ }
         try { unlinkSync(wcConcatList) } catch { /* skip */ }
         try { rmdirSync(wcClipsDir) } catch { /* skip */ }
-        try { rmdirSync(wcWorkDir) } catch { /* skip */ }
       }
     }
 
-    // ── 7. PiP overlay (optional) ──────────────────────────────────────────────
-    // When a position is chosen the webcam is composited onto the main video as
-    // a picture-in-picture — the webcam is scaled to 25% of its own width and
-    // placed in the selected corner with a 20px margin.
-    if (webcamPath && pipPosition && webcamOutputPath) {
-      onProgress?.({ pct: 98, message: 'A compor PiP…' })
+    // ── 6. Final encode ───────────────────────────────────────────────────────
+    let webcamOutputPath: string | undefined
 
+    if (webcamPath && pipPosition) {
+      // PiP mode: a SINGLE encode does overlay + loudnorm. Compositing the webcam
+      // requires a video re-encode anyway, so we fold loudnorm and the audio mux
+      // into the same pass instead of producing the main video and then re-encoding
+      // the whole 4K file again just to overlay — saving one full encode.
+      const webcamConcat = join(workDir, 'webcam_concat.mp4')
+      await buildWebcamConcat(webcamConcat, loudEnd1)
+
+      onProgress?.({ pct: loudEnd1 + 14, message: 'A compor vídeo final…' })
       const overlayExpr: Record<PipPosition, string> = {
-        'top-left':     '20:20',
-        'top-right':    'W-w-20:20',
-        'bottom-left':  '20:H-h-20',
+        'top-left': '20:20',
+        'top-right': 'W-w-20:20',
+        'bottom-left': '20:H-h-20',
         'bottom-right': 'W-w-20:H-h-20',
       }
-
-      const pipTemp = join(workDir, 'pip_out.mp4')
-
       await execFileAsync(getFFmpegPath(), [
         '-y',
-        '-i', outputPath,       // main video (audio-normalised)
-        '-i', webcamOutputPath, // webcam (no audio)
+        '-i', videoConcat,    // [0] frame-locked main video
+        '-i', webcamConcat,   // [1] frame-locked webcam
+        '-i', audioConcat,    // [2] raw audio
         '-filter_complex',
-        `[1:v]scale=iw/4:-2[pip];[0:v][pip]overlay=${overlayExpr[pipPosition]}`,
+        `[1:v]scale=iw/4:-2[pip];[0:v][pip]overlay=${overlayExpr[pipPosition]}[v];[2:a]${loudnormFilter}[a]`,
+        '-map', '[v]', '-map', '[a]',
         ...encoder.videoArgs,
-        '-c:a', 'copy',
-        pipTemp,
+        '-c:a', 'aac', '-b:a', '192k',
+        outputPath,
+      ])
+      console.log(`[render] PiP overlay folded into final encode — position: ${pipPosition}`)
+    } else {
+      // Standard mode: copy the frame-locked video (no encode) and loudnorm audio.
+      onProgress?.({ pct: loudEnd1 + 1, message: 'A aplicar loudnorm…' })
+      await execFileAsync(getFFmpegPath(), [
+        '-y',
+        '-i', videoConcat,
+        '-i', audioConcat,
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-c:v', 'copy',
+        '-af', loudnormFilter,
+        '-c:a', 'aac', '-b:a', '192k',
+        outputPath,
       ])
 
-      // Replace the main output with the combined PiP file
-      unlinkSync(outputPath)
-      renameSync(pipTemp, outputPath)
-
-      // Remove the separate webcam file — user gets one combined video
-      try { unlinkSync(webcamOutputPath) } catch { /* skip */ }
-      webcamOutputPath = undefined
-
-      console.log(`[render] PiP overlay applied — position: ${pipPosition}`)
+      // Two-file output: cut the webcam to its own separate file.
+      if (webcamPath) {
+        const wcBase = basename(webcamPath, extname(webcamPath))
+        webcamOutputPath = join(outputDir, `${wcBase}_editado.mp4`)
+        await buildWebcamConcat(webcamOutputPath, loudEnd2)
+      }
     }
+
+    const totalDuration = ranges.reduce((sum, r) => sum + (r.end - r.start), 0)
 
     onProgress?.({ pct: 100, message: 'Concluído!' })
 
