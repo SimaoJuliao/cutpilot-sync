@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cn } from '@lib'
 import { strings } from '@i18n'
 import useStepUpload from './useStepUpload'
@@ -35,12 +36,44 @@ const PlusIcon = () => (
   </svg>
 )
 
+// Two overlapping frames — "two separate files" output mode
+const TwoFilesIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="3" y="6" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="8" y="9" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="var(--card)" />
+  </svg>
+)
+
+// One frame with an inset tile — "single video, webcam overlaid" output mode
+const PipModeIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    <rect x="13" y="12" width="6" height="5" rx="1" fill="currentColor" />
+  </svg>
+)
+
+// Sliders — "advanced" toggle
+const SlidersIcon = ({ size = 13 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M3 6h9M15 6h2M3 14h2M8 14h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="13" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
+    <circle cx="6" cy="14" r="2" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+)
+
+const ChevronIcon = ({ size = 12, className = '' }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
+    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface UploadResult {
   videoPath: string
   webcamPath?: string
   syncOffsetSec?: number
+  pipPosition?: import('@/types').PipPosition
 }
 
 interface StepUploadProps {
@@ -56,16 +89,45 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
     webcamFile, webcamFileName, webcamDragging, syncOffsetSec,
     handleWebcamPick, handleWebcamDragOver, handleWebcamDragLeave,
     handleWebcamDrop, handleWebcamRemove, setSyncOffsetSec,
+    pipPosition, setPipPosition,
     ffmpegOk,
   } = useStepUpload()
+
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const handleKey = (e: React.KeyboardEvent, fn: () => void) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn() }
   }
 
+  // Clamp + round to 1 decimal so stepping never produces float noise (e.g. 0.30000004)
+  const clampStep = (v: number) => Math.min(60, Math.max(-60, Math.round(v * 10) / 10))
+
+  // Output mode is derived from pipPosition: null = two separate files, a corner = overlay.
+  const mode: 'separate' | 'pip' = pipPosition ? 'pip' : 'separate'
+
+  // Corner geometry for the PiP monitor (active tile position + always-visible markers).
+  const PIP_CORNERS = ['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const
+  const tileCornerCls: Record<typeof PIP_CORNERS[number], string> = {
+    'top-left': 'top-0 left-0', 'top-right': 'top-0 right-0',
+    'bottom-left': 'bottom-0 left-0', 'bottom-right': 'bottom-0 right-0',
+  }
+  const cornerDotCls: Record<typeof PIP_CORNERS[number], string> = {
+    'top-left': 'top-1.5 left-1.5', 'top-right': 'top-1.5 right-1.5',
+    'bottom-left': 'bottom-1.5 left-1.5', 'bottom-right': 'bottom-1.5 right-1.5',
+  }
+  const pipAria: Record<typeof PIP_CORNERS[number], string> = {
+    'top-left': t.pipTopLeft, 'top-right': t.pipTopRight,
+    'bottom-left': t.pipBottomLeft, 'bottom-right': t.pipBottomRight,
+  }
+
   const handleStart = () => {
     if (!file) return
-    onNext({ videoPath: file, webcamPath: webcamFile ?? undefined, syncOffsetSec })
+    onNext({
+      videoPath: file,
+      webcamPath: webcamFile ?? undefined,
+      syncOffsetSec,
+      pipPosition: (webcamFile && pipPosition) ? pipPosition : undefined,
+    })
   }
 
   return (
@@ -233,29 +295,172 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
                 </button>
               </div>
 
-              {/* Sync offset */}
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 px-5 py-4">
-                <p className="font-mono text-[10px] text-muted-foreground/70 tracking-widest uppercase">
-                  {t.syncOffsetLabel}
-                </p>
+              {/* Result-mode chooser → reveals corner picker → advanced (sync) */}
+              <div className="flex-1 flex flex-col gap-3.5 px-4 py-4">
+
+                {/* Section label */}
                 <div className="flex items-center gap-2">
-                  <input
-                    id="sync-offset"
-                    type="number"
-                    step="0.1"
-                    min="-60"
-                    max="60"
-                    value={syncOffsetSec}
-                    onChange={(e) => setSyncOffsetSec(parseFloat(e.target.value) || 0)}
-                    className="w-20 h-9 bg-background/80 border border-border/70
-                               text-foreground/80 font-mono text-sm text-center tabular-nums
-                               focus:outline-none focus:border-primary/60 transition-colors"
-                  />
-                  <span className="font-mono text-xs text-muted-foreground/65">{t.secUnit}</span>
+                  <span className="w-1 h-1 rounded-full bg-primary/70" aria-hidden="true" />
+                  <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-foreground/65">
+                    {t.resultLabel}
+                  </span>
                 </div>
-                <p className="font-mono text-[10px] text-muted-foreground/60 text-center leading-relaxed">
-                  {t.syncOffsetHint}
-                </p>
+
+                {/* Explicit choice: two clear output modes */}
+                <div className="grid grid-cols-2 gap-2.5" role="group" aria-label={t.resultLabel}>
+                  {([
+                    { key: 'separate', icon: <TwoFilesIcon />, title: t.modeSeparateTitle, desc: t.modeSeparateDesc, onClick: () => setPipPosition(null) },
+                    { key: 'pip', icon: <PipModeIcon />, title: t.modeOverlayTitle, desc: t.modeOverlayDesc, onClick: () => { if (!pipPosition) setPipPosition('bottom-right') } },
+                  ] as const).map((opt) => {
+                    const active = mode === opt.key
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={opt.onClick}
+                        className={cn(
+                          'flex flex-col items-center gap-1.5 px-2 py-3.5 border transition-all duration-150',
+                          active
+                            ? 'border-primary/70 bg-primary/[0.08] text-foreground shadow-[0_0_14px_hsl(var(--primary)/0.12)]'
+                            : 'border-border/50 bg-card/30 text-muted-foreground/65 hover:border-border/80 hover:text-foreground/80',
+                        )}
+                      >
+                        <span className={active ? 'text-primary' : ''}>{opt.icon}</span>
+                        <span className="font-mono text-[11px] tracking-wide text-center leading-tight">{opt.title}</span>
+                        <span className="font-mono text-[9px] text-muted-foreground/55 text-center leading-tight">{opt.desc}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Corner picker — only when overlay is chosen */}
+                {pipPosition && (
+                  <div className="flex flex-col gap-2 animate-fade-up">
+                    <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-muted-foreground/65">
+                      {t.pipPositionLabel}
+                    </span>
+
+                    {/* Monitor — 16:9 screen; tap a corner, the camera tile slides there */}
+                    <div className="relative w-full aspect-video bg-[hsl(220,18%,7%)] border border-border/60 overflow-hidden
+                                    shadow-[inset_0_0_30px_rgba(0,0,0,0.5)]">
+                      {/* Scanline texture */}
+                      <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
+                        style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 2px, rgba(255,255,255,0.7) 2px 3px)' }}
+                        aria-hidden="true" />
+                      {/* Screen tag */}
+                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                                       font-mono text-[9px] tracking-[0.45em] uppercase text-muted-foreground/25 select-none"
+                        aria-hidden="true">
+                        {t.pipScreenTag}
+                      </span>
+
+                      {/* Corner targets — quadrant-sized, with an always-visible marker */}
+                      {PIP_CORNERS.map((pos) => (
+                        <button
+                          key={pos}
+                          type="button"
+                          aria-label={pipAria[pos]}
+                          aria-pressed={pipPosition === pos}
+                          onClick={() => setPipPosition(pos)}
+                          className={cn('group/c absolute w-1/2 h-1/2 z-10', tileCornerCls[pos])}
+                        >
+                          <span className={cn(
+                            'absolute w-4 h-3 border transition-colors duration-150',
+                            cornerDotCls[pos],
+                            pipPosition === pos
+                              ? 'border-transparent'
+                              : 'border-border/70 bg-border/20 group-hover/c:border-primary/70 group-hover/c:bg-primary/25',
+                          )} aria-hidden="true" />
+                        </button>
+                      ))}
+
+                      {/* Active camera tile — 25% width matches the real overlay (scale=iw/4) */}
+                      <div className={cn(
+                        'absolute w-[25%] h-[25%] m-1 flex items-center justify-center',
+                        'bg-primary/25 border border-primary shadow-[0_0_12px_hsl(var(--primary)/0.45)]',
+                        'transition-all duration-300 ease-out pointer-events-none',
+                        tileCornerCls[pipPosition],
+                      )} aria-hidden="true">
+                        <span className="text-primary"><CamIcon size={11} /></span>
+                      </div>
+                    </div>
+
+                    {/* Current corner caption */}
+                    <p className="font-mono text-[10px] text-center tracking-wide text-primary/80" aria-live="polite">
+                      {pipAria[pipPosition]}
+                    </p>
+                  </div>
+                )}
+
+                {/* Advanced (collapsible) — sync offset, rarely needed */}
+                <div className="mt-auto pt-1">
+                  <button
+                    type="button"
+                    aria-expanded={showAdvanced}
+                    onClick={() => setShowAdvanced((v) => !v)}
+                    className={cn(
+                      'w-full flex items-center justify-between gap-2 h-9 px-3 border transition-all duration-150',
+                      'font-mono text-[10px] tracking-[0.2em] uppercase',
+                      showAdvanced
+                        ? 'border-primary/45 bg-primary/[0.07] text-foreground/85'
+                        : 'border-border/55 bg-card/40 text-muted-foreground/75 hover:border-primary/45 hover:text-foreground/85 hover:bg-card/60',
+                    )}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={showAdvanced ? 'text-primary' : 'text-muted-foreground/70'}><SlidersIcon size={13} /></span>
+                      {t.advancedLabel}
+                    </span>
+                    <ChevronIcon size={12} className={cn('transition-transform duration-200', showAdvanced && 'rotate-180')} />
+                  </button>
+
+                  {showAdvanced && (
+                    <div className="flex flex-col gap-1.5 pt-3 animate-fade-up">
+                      <span className="font-mono text-[10px] tracking-wide uppercase text-muted-foreground/65">
+                        {t.syncOffsetLabel}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-stretch h-8 border border-border/60 bg-background/60">
+                          <button
+                            type="button"
+                            aria-label={t.syncDecrease}
+                            onClick={() => setSyncOffsetSec(clampStep(syncOffsetSec - 0.1))}
+                            className="w-7 flex items-center justify-center text-base leading-none
+                                       text-muted-foreground/70 hover:text-primary hover:bg-primary/10
+                                       active:bg-primary/20 transition-colors"
+                          >−</button>
+                          <input
+                            id="sync-offset"
+                            type="number"
+                            step="0.1"
+                            min="-60"
+                            max="60"
+                            value={syncOffsetSec}
+                            onChange={(e) => setSyncOffsetSec(parseFloat(e.target.value) || 0)}
+                            className="w-12 bg-transparent text-center font-mono text-[13px] tabular-nums
+                                       text-foreground/85 border-x border-border/60 focus:outline-none
+                                       focus:bg-primary/[0.06] transition-colors
+                                       [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
+                                       [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                          <button
+                            type="button"
+                            aria-label={t.syncIncrease}
+                            onClick={() => setSyncOffsetSec(clampStep(syncOffsetSec + 0.1))}
+                            className="w-7 flex items-center justify-center text-base leading-none
+                                       text-muted-foreground/70 hover:text-primary hover:bg-primary/10
+                                       active:bg-primary/20 transition-colors"
+                          >+</button>
+                        </div>
+                        <span className="font-mono text-[10px] text-muted-foreground/55">{t.secUnit}</span>
+                      </div>
+                      <p className="font-mono text-[9px] text-muted-foreground/45 tracking-wide">
+                        {t.syncOffsetHint}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
           ) : (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@lib'
-import type { RenderResult } from '@/types'
+import type { RenderResult, PipPosition } from '@/types'
 
 const ONBOARDED_KEY = 'cps_onboarded'
 
@@ -11,6 +11,7 @@ export interface ProcessParams {
   videoPath: string
   webcamPath?: string
   syncOffsetSec?: number
+  pipPosition?: PipPosition
 }
 
 export interface AppState {
@@ -18,6 +19,7 @@ export interface AppState {
   videoPath: string | null
   webcamPath: string | null
   syncOffsetSec: number
+  pipPosition: PipPosition | null
   result: RenderResult | null
 }
 
@@ -33,6 +35,7 @@ const useApp = (user: User | null): AppState & AppActions => {
   const [videoPath, setVideoPath] = useState<string | null>(null)
   const [webcamPath, setWebcamPath] = useState<string | null>(null)
   const [syncOffsetSec, setSyncOffsetSec] = useState(0)
+  const [pipPosition, setPipPosition] = useState<PipPosition | null>(null)
   const [result, setResult] = useState<RenderResult | null>(null)
 
   // Initialize step once the user is known.
@@ -56,10 +59,11 @@ const useApp = (user: User | null): AppState & AppActions => {
       .catch(err => console.error('[useApp] failed to save onboarding state:', err))
   }, [])
 
-  const startProcessing = useCallback(({ videoPath: path, webcamPath: wc, syncOffsetSec: offset }: ProcessParams) => {
+  const startProcessing = useCallback(({ videoPath: path, webcamPath: wc, syncOffsetSec: offset, pipPosition: pip }: ProcessParams) => {
     setVideoPath(path)
     setWebcamPath(wc ?? null)
     setSyncOffsetSec(offset ?? 0)
+    setPipPosition(pip ?? null)
     setStep('process')
   }, [])
 
@@ -72,11 +76,12 @@ const useApp = (user: User | null): AppState & AppActions => {
     setVideoPath(null)
     setWebcamPath(null)
     setSyncOffsetSec(0)
+    setPipPosition(null)
     setResult(null)
     setStep('upload')
   }, [])
 
-  return { step, videoPath, webcamPath, syncOffsetSec, result, finishOnboarding, startProcessing, finishDone, reset }
+  return { step, videoPath, webcamPath, syncOffsetSec, pipPosition, result, finishOnboarding, startProcessing, finishDone, reset }
 }
 
 export default useApp

@@ -51,7 +51,7 @@ const isMac = /mac/i.test(navigator.platform)
 const App = () => {
   const { user, loading: authLoading, isResetting, finishReset, signOut } = useAuth()
   const {
-    step, videoPath, webcamPath, syncOffsetSec, result,
+    step, videoPath, webcamPath, syncOffsetSec, pipPosition, result,
     finishOnboarding, startProcessing, finishDone, reset,
   } = useApp(user)
 
@@ -230,6 +230,7 @@ const App = () => {
             videoPath={videoPath}
             webcamPath={webcamPath ?? undefined}
             syncOffsetSec={syncOffsetSec}
+            pipPosition={pipPosition ?? undefined}
             onDone={finishDone}
           />
         )}

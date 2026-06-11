@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { ElectronFile } from '@/types'
+import type { ElectronFile, PipPosition } from '@/types'
 import { basename } from '@lib'
 
 export interface UseStepUploadReturn {
@@ -22,6 +22,9 @@ export interface UseStepUploadReturn {
   handleWebcamDrop: (e: React.DragEvent) => void
   handleWebcamRemove: () => void
   setSyncOffsetSec: (v: number) => void
+  // PiP overlay position (null = two separate files)
+  pipPosition: PipPosition | null
+  setPipPosition: (v: PipPosition | null) => void
   // FFmpeg
   ffmpegOk: boolean | null
 }
@@ -32,6 +35,7 @@ const useStepUpload = (): UseStepUploadReturn => {
   const [webcamFile, setWebcamFile] = useState<string | null>(null)
   const [webcamDragging, setWebcamDragging] = useState(false)
   const [syncOffsetSec, setSyncOffsetSec] = useState(0)
+  const [pipPosition, setPipPosition] = useState<PipPosition | null>(null)
   const [ffmpegOk, setFfmpegOk] = useState<boolean | null>(null)
 
   useEffect(() => { window.api.checkFFmpeg().then(setFfmpegOk) }, [])
@@ -63,7 +67,7 @@ const useStepUpload = (): UseStepUploadReturn => {
     const f = e.dataTransfer.files[0] as ElectronFile | undefined
     if (f?.path) setWebcamFile(f.path)
   }
-  const handleWebcamRemove = () => { setWebcamFile(null); setSyncOffsetSec(0) }
+  const handleWebcamRemove = () => { setWebcamFile(null); setSyncOffsetSec(0); setPipPosition(null) }
 
   return {
     file, fileName: file ? basename(file) : null,
@@ -72,6 +76,7 @@ const useStepUpload = (): UseStepUploadReturn => {
     webcamDragging, syncOffsetSec,
     handleWebcamPick, handleWebcamDragOver, handleWebcamDragLeave, handleWebcamDrop,
     handleWebcamRemove, setSyncOffsetSec,
+    pipPosition, setPipPosition,
     ffmpegOk,
   }
 }
