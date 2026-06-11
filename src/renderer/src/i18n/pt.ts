@@ -65,6 +65,24 @@ export const pt = {
     webcamRemoveLabel: 'Remover câmara',
     secUnit: 'seg.',
     webcamBadge: '+ câmara',
+    // Result mode chooser
+    resultLabel: 'Resultado',
+    modeSeparateTitle: 'Dois ficheiros',
+    modeSeparateDesc: 'cortados em sincronia',
+    modeOverlayTitle: 'Vídeo único',
+    modeOverlayDesc: 'câmara sobreposta',
+    // PiP position
+    pipPositionLabel: 'Posição da câmara',
+    pipTopLeft: 'Canto superior esquerdo',
+    pipTopRight: 'Canto superior direito',
+    pipBottomLeft: 'Canto inferior esquerdo',
+    pipBottomRight: 'Canto inferior direito',
+    pipScreenTag: 'Ecrã',
+    pipCamTag: 'Cam',
+    // Advanced + sync stepper
+    advancedLabel: 'Avançado',
+    syncDecrease: 'Diminuir desfasamento',
+    syncIncrease: 'Aumentar desfasamento',
   },
 
   stepProcess: {

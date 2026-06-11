@@ -137,11 +137,12 @@ interface StepProcessProps {
   videoPath: string
   webcamPath?: string
   syncOffsetSec?: number
+  pipPosition?: import('@/types').PipPosition
   onDone: (result: RenderResult) => void
 }
 
-const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, onDone }: StepProcessProps) => {
-  const { pct, msg, phase, error } = useStepProcess(videoPath, onDone, webcamPath, syncOffsetSec)
+const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, pipPosition, onDone }: StepProcessProps) => {
+  const { pct, msg, phase, error } = useStepProcess(videoPath, onDone, webcamPath, syncOffsetSec, pipPosition)
 
   if (error) {
     return (

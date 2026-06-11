@@ -26,6 +26,8 @@ export interface BuildPromptOptions {
   language: string
 }
 
+export type PipPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
 export interface RenderOptions {
   videoPath: string
   edlJSON: string
@@ -36,6 +38,9 @@ export interface RenderOptions {
    *  Use when the webcam started later than the screen recording.
    *  Defaults to 0 (both recordings started simultaneously). */
   syncOffsetSec?: number
+  /** When set, overlays the webcam as a picture-in-picture on the main video
+   *  instead of exporting two separate files. */
+  pipPosition?: PipPosition
 }
 
 export interface RenderProgress {

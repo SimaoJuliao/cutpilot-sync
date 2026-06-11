@@ -219,12 +219,12 @@ ipcMain.handle('call-claude', async (_event, { transcript, videoName, language }
   } catch (err) { console.error('[call-claude]', err); throw err }
 })
 
-ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir, webcamPath, syncOffsetSec }: RenderOptions) => {
+ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir, webcamPath, syncOffsetSec, pipPosition }: RenderOptions) => {
   if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true })
   try {
     return await renderVideo(videoPath, edlJSON, outputDir, (progress) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send('render-progress', progress)
-    }, webcamPath, syncOffsetSec)
+    }, webcamPath, syncOffsetSec, pipPosition)
   } catch (err) { console.error('[render]', err); throw err }
 })
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import type { RenderResult } from '@/types'
+import type { RenderResult, PipPosition } from '@/types'
 import { dirname, basename } from '@lib'
 
 export type ProcessPhase = 'transcribe' | 'analyse' | 'export' | 'done' | 'error'
@@ -115,6 +115,7 @@ const useStepProcess = (
   onDone: (result: RenderResult) => void,
   webcamPath?: string,
   syncOffsetSec?: number,
+  pipPosition?: PipPosition,
 ): UseStepProcessReturn => {
   const [phase, setPhase] = useState<ProcessPhase>('transcribe')
   const [pct, setPct] = useState(0)
@@ -175,6 +176,7 @@ const useStepProcess = (
           outputDir,
           webcamPath: webcamPath,
           syncOffsetSec: syncOffsetSec ?? 0,
+          pipPosition,
         })
         .finally(() => window.api.removeAllListeners('render-progress'))
 
