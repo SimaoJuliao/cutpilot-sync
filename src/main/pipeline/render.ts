@@ -6,143 +6,26 @@
  * Pipeline:
  *   1. Parse + validate EDL
  *   2. Extract each segment with re-encoding (frame-precise cuts)
- *   3. Write ffmpeg concat list
- *   4. Concat all segments (stream copy — fast)
- *   5. Two-pass loudnorm (-14 LUFS / -1 dBTP / LRA 11)
+ *   3. Concat the per-segment video and audio streams
+ *   4. Two-pass loudnorm (-14 LUFS / -1 dBTP / LRA 11)
+ *   5. Final encode — PiP overlay (single video) or webcam as a second file
+ *
+ * Encoder/fps probing lives in ffprobe.ts; the concurrency pool in concurrency.ts.
  */
 
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { writeFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, rmdirSync } from 'fs'
+import { writeFileSync, mkdirSync, unlinkSync, rmdirSync, rmSync } from 'fs'
 import { join, basename, extname } from 'path'
-import { tmpdir, cpus } from 'os'
+import { tmpdir } from 'os'
 import type { EdlRange, RenderResult, RenderProgress, PipPosition } from '../../../src/renderer/src/types/electron'
 import { getFFmpegPath } from './ffmpeg'
+import { detectEncoder, detectFps, type EncoderConfig, type Fps } from './ffprobe'
+import { runPool } from './concurrency'
 
 const execFileAsync = promisify(execFile)
 
 type ProgressCallback = (progress: RenderProgress) => void
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Encoder detection
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Probe whether a given FFmpeg encoder is available on this machine by running
- * a quick 1-frame null encode.  Returns true if FFmpeg exits without error.
- */
-const probeEncoder = async (codec: string): Promise<boolean> => {
-  try {
-    await execFileAsync(getFFmpegPath(), [
-      '-f', 'lavfi', '-i', 'nullsrc=s=64x64',
-      '-vframes', '1',
-      '-c:v', codec,
-      '-f', 'null', '-',
-    ])
-    return true
-  } catch {
-    return false
-  }
-}
-
-interface EncoderConfig {
-  label: string    // human-readable name for logs
-  videoArgs: string[] // ffmpeg args replacing -c:v … for segment encoding
-}
-
-/**
- * Detect the best available video encoder:
- *   1. NVIDIA GPU  (h264_nvenc)
- *   2. AMD GPU     (h264_amf)
- *   3. Intel GPU   (h264_qsv)
- *   4. CPU libx264 — quality/speed tuned to core count
- *
- * Result is cached so the probe only runs once per process.
- */
-let _encoderCache: EncoderConfig | null = null
-
-const detectEncoder = async (): Promise<EncoderConfig> => {
-  if (_encoderCache) return _encoderCache
-
-  // Hardware encoders — much faster than CPU, equivalent quality
-  if (await probeEncoder('h264_nvenc')) {
-    _encoderCache = {
-      label: 'NVIDIA GPU (nvenc)',
-      videoArgs: ['-c:v', 'h264_nvenc', '-preset', 'p4', '-rc', 'vbr', '-cq', '18', '-b:v', '0'],
-    }
-    return _encoderCache
-  }
-
-  if (await probeEncoder('h264_amf')) {
-    _encoderCache = {
-      label: 'AMD GPU (amf)',
-      videoArgs: ['-c:v', 'h264_amf', '-quality', 'quality', '-rc', 'cqp', '-qp_i', '18', '-qp_p', '20'],
-    }
-    return _encoderCache
-  }
-
-  if (await probeEncoder('h264_qsv')) {
-    _encoderCache = {
-      label: 'Intel GPU (qsv)',
-      videoArgs: ['-c:v', 'h264_qsv', '-global_quality', '18', '-preset', 'faster'],
-    }
-    return _encoderCache
-  }
-
-  // Software fallback — adapt quality/speed to available CPU cores
-  const cores = cpus().length
-  const crf = cores >= 8 ? '16' : cores >= 4 ? '18' : '20'
-  const preset = cores >= 8 ? 'fast' : 'veryfast'
-
-  _encoderCache = {
-    label: `CPU libx264 CRF ${crf} (${cores} cores)`,
-    videoArgs: ['-c:v', 'libx264', '-crf', crf, '-preset', preset],
-  }
-  return _encoderCache
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Frame-rate detection
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface Fps { num: number; den: number; value: number }
-
-// Standard broadcast/web frame rates. We snap a printed (rounded) fps to its exact
-// rational — e.g. "29.97" → 30000/1001 — so per-segment frame counts and audio
-// durations can be computed exactly and stay locked together over a long timeline.
-const STANDARD_FPS: Fps[] = [
-  { num: 24000, den: 1001, value: 24000 / 1001 },
-  { num: 24, den: 1, value: 24 },
-  { num: 25, den: 1, value: 25 },
-  { num: 30000, den: 1001, value: 30000 / 1001 },
-  { num: 30, den: 1, value: 30 },
-  { num: 48, den: 1, value: 48 },
-  { num: 50, den: 1, value: 50 },
-  { num: 60000, den: 1001, value: 60000 / 1001 },
-  { num: 60, den: 1, value: 60 },
-]
-
-/** Probe a video's frame rate via `ffmpeg -i`, snapping to the nearest standard
- *  rational so frame maths is exact. Falls back to a /1000 rational for odd rates. */
-const detectFps = async (videoPath: string): Promise<Fps> => {
-  const stderr = await new Promise<string>((resolve) => {
-    execFile(getFFmpegPath(), ['-i', videoPath], (_e, _o, err) => resolve(err ?? ''))
-  })
-  const m = stderr.match(/([0-9]+(?:\.[0-9]+)?)\s*fps/)
-  const printed = m ? parseFloat(m[1]) : 30000 / 1001
-
-  let best = STANDARD_FPS[3]
-  let bestDiff = Infinity
-  for (const s of STANDARD_FPS) {
-    const diff = Math.abs(s.value - printed)
-    if (diff < bestDiff) { bestDiff = diff; best = s }
-  }
-  if (bestDiff > 0.1) {
-    const num = Math.round(printed * 1000)
-    return { num, den: 1000, value: num / 1000 }
-  }
-  return best
-}
 
 interface LoudnormStats {
   input_i: string
@@ -151,6 +34,219 @@ interface LoudnormStats {
   input_thresh: string
   target_offset: string
 }
+
+/**
+ * How many segments to cut at once. Hardware encoders (nvenc/qsv/amf) have spare
+ * headroom, so we run more in parallel. libx264 already saturates the CPU, so we
+ * keep the pool small to avoid oversubscription — the win there comes mainly from
+ * overlapping the per-segment seek/decode/IO, not the encode itself.
+ */
+const segmentConcurrency = (encoder: EncoderConfig): number =>
+  encoder.label.includes('GPU') ? 4 : 2
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pipeline stages
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ExtractResult { vClipPaths: string[]; aClipPaths: string[] }
+
+/**
+ * Cut every kept range into a frame-exact video clip and a sample-exact PCM
+ * audio clip, on SEPARATE streams.
+ *
+ * CRITICAL (sync fix): cutting the main video WITH audio per segment and then
+ * concatenating made the concat demuxer chain each segment by its (slightly
+ * longer) AUDIO duration, padding the video timeline. Across ~70 segments this
+ * dropped the effective frame rate (29.97 → ~29.90) so the main video drifted out
+ * of sync with the webcam — which is cut video-only and stays at exactly 29.97.
+ * We now cut video-only (frame-locked, identical to the webcam path) and audio-only
+ * as PCM (no AAC priming, sample-exact concat), then mux them back together during
+ * the final encode. This keeps the main video frame-locked to the webcam.
+ *
+ * Each segment's frame count is the single source of truth for its length: video
+ * is cut to EXACTLY segFrames frames, audio to EXACTLY segFrames/fps seconds — so
+ * the picture never drifts from the voice no matter how many segments there are.
+ *
+ * Segments run in a bounded-concurrency pool; within each segment the video and
+ * audio cuts run together (audio is cheap, so it overlaps the video encode).
+ */
+const extractSegments = async (
+  videoPath: string,
+  ranges: EdlRange[],
+  fps: Fps,
+  encoder: EncoderConfig,
+  clipsDir: string,
+  onProgress: ProgressCallback | undefined,
+  pctStart: number,
+  pctEnd: number,
+): Promise<ExtractResult> => {
+  // Pre-assign deterministic paths so concat order matches timeline order,
+  // regardless of which segment finishes first in the pool.
+  const vClipPaths = ranges.map((_, i) => join(clipsDir, `v_${String(i).padStart(3, '0')}.mp4`))
+  const aClipPaths = ranges.map((_, i) => join(clipsDir, `a_${String(i).padStart(3, '0')}.wav`))
+
+  let done = 0
+  await runPool(ranges, segmentConcurrency(encoder), async (r, i) => {
+    const segFrames = Math.max(1, Math.round((r.end - r.start) * fps.value))
+    const segDur = (segFrames * fps.den / fps.num).toFixed(6)
+
+    await Promise.all([
+      // Video-only — exactly segFrames frames, frame-locked to the webcam
+      execFileAsync(getFFmpegPath(), [
+        '-y',
+        '-ss', String(r.start),
+        '-i', videoPath,
+        '-frames:v', String(segFrames),
+        ...encoder.videoArgs,
+        '-an',
+        '-avoid_negative_ts', 'make_zero',
+        vClipPaths[i],
+      ]),
+      // Audio-only PCM — exactly segDur seconds (apad covers any shortfall at EOF)
+      execFileAsync(getFFmpegPath(), [
+        '-y',
+        '-ss', String(r.start),
+        '-i', videoPath,
+        '-t', segDur,
+        '-af', 'apad',
+        '-vn',
+        '-c:a', 'pcm_s16le',
+        aClipPaths[i],
+      ]),
+    ])
+
+    done++
+    const pct = pctStart + Math.round((done / ranges.length) * (pctEnd - pctStart))
+    onProgress?.({ pct, message: `A extrair segmento ${done}/${ranges.length}…` })
+  })
+
+  return { vClipPaths, aClipPaths }
+}
+
+/** Concat the per-segment video clips and audio clips into single streams.
+ *  Both concats are independent so they run together (stream copy — fast). */
+const concatStreams = async (
+  vClipPaths: string[],
+  aClipPaths: string[],
+  workDir: string,
+): Promise<{ videoConcat: string; audioConcat: string }> => {
+  const toListFile = (paths: string[]) =>
+    paths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n')
+
+  const vConcatList = join(workDir, 'vconcat.txt')
+  const aConcatList = join(workDir, 'aconcat.txt')
+  writeFileSync(vConcatList, toListFile(vClipPaths))
+  writeFileSync(aConcatList, toListFile(aClipPaths))
+
+  const videoConcat = join(workDir, 'video_concat.mp4')
+  const audioConcat = join(workDir, 'audio_concat.wav')
+  await Promise.all([
+    execFileAsync(getFFmpegPath(), ['-y', '-f', 'concat', '-safe', '0', '-i', vConcatList, '-c', 'copy', videoConcat]),
+    execFileAsync(getFFmpegPath(), ['-y', '-f', 'concat', '-safe', '0', '-i', aConcatList, '-c', 'copy', audioConcat]),
+  ])
+
+  return { videoConcat, audioConcat }
+}
+
+/** Pass 1 of loudnorm: measure the concatenated audio and return the fully
+ *  parameterised pass-2 filter string (falls back to a generic filter if the
+ *  measurement JSON can't be parsed). */
+const measureLoudnorm = async (audioConcat: string): Promise<string> => {
+  const GENERIC = 'loudnorm=I=-14:TP=-1:LRA=11'
+
+  let measureOutput = ''
+  await new Promise<void>((resolve, reject) => {
+    const ff = execFile(getFFmpegPath(), [
+      '-i', audioConcat,
+      '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json',
+      '-f', 'null', '-',
+    ])
+    ff.stderr?.on('data', (d: Buffer) => { measureOutput += d.toString() })
+    ff.on('close', () => resolve())
+    ff.on('error', reject)
+  })
+
+  const match = measureOutput.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/)
+  if (!match) return GENERIC
+  try {
+    const stats = JSON.parse(match[0]) as LoudnormStats
+    return [
+      'loudnorm=I=-14:TP=-1:LRA=11:linear=true',
+      `measured_I=${stats.input_i}`,
+      `measured_LRA=${stats.input_lra}`,
+      `measured_TP=${stats.input_tp}`,
+      `measured_thresh=${stats.input_thresh}`,
+      `offset=${stats.target_offset}`,
+    ].join(':')
+  } catch {
+    return GENERIC
+  }
+}
+
+/**
+ * Cut the webcam to frame-exact segments and concat to `outPath`.
+ * Each webcam segment is cut to the SAME duration as the main video's frame-exact
+ * segment (identical frame count when the cameras share a frame rate — the usual
+ * case), keeping the webcam locked to the main video and therefore to the audio.
+ * Re-encodes (NOT stream-copy) so cuts are frame-accurate; stream-copy snaps to
+ * keyframes that differ between cameras and breaks sync. Cleans its own temp clips.
+ */
+const cutWebcam = async (
+  webcamPath: string,
+  ranges: EdlRange[],
+  fps: Fps,
+  encoder: EncoderConfig,
+  workDir: string,
+  syncOffsetSec: number,
+  outPath: string,
+  onProgress: ProgressCallback | undefined,
+  basePct: number,
+): Promise<void> => {
+  const wcFps = await detectFps(webcamPath)
+  console.log(`[render] webcam fps: ${wcFps.num}/${wcFps.den} (${wcFps.value.toFixed(4)})`)
+
+  const wcClipsDir = join(workDir, 'wc_clips')
+  mkdirSync(wcClipsDir, { recursive: true })
+  const wcClipPaths = ranges.map((_, i) => join(wcClipsDir, `wc_${String(i).padStart(3, '0')}.mp4`))
+  const wcConcatList = join(workDir, 'wcconcat.txt')
+
+  try {
+    let done = 0
+    await runPool(ranges, segmentConcurrency(encoder), async (r, i) => {
+      const wcStart = Math.max(0, r.start - syncOffsetSec)
+      const segFrames = Math.max(1, Math.round((r.end - r.start) * fps.value))
+      const segDur = segFrames * fps.den / fps.num
+      const wcFrames = Math.max(1, Math.round(segDur * wcFps.value))
+
+      await execFileAsync(getFFmpegPath(), [
+        '-y',
+        '-ss', String(wcStart),
+        '-i', webcamPath,
+        '-frames:v', String(wcFrames),
+        ...encoder.videoArgs,
+        '-an',
+        '-avoid_negative_ts', 'make_zero',
+        wcClipPaths[i],
+      ])
+
+      done++
+      onProgress?.({ pct: basePct + Math.round((done / ranges.length) * 12), message: `A cortar câmara ${done}/${ranges.length}…` })
+    })
+
+    writeFileSync(wcConcatList, wcClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'))
+    await execFileAsync(getFFmpegPath(), [
+      '-y', '-f', 'concat', '-safe', '0', '-i', wcConcatList, '-c', 'copy', outPath,
+    ])
+  } finally {
+    try { wcClipPaths.forEach((f) => unlinkSync(f)) } catch { /* skip */ }
+    try { unlinkSync(wcConcatList) } catch { /* skip */ }
+    try { rmdirSync(wcClipsDir) } catch { /* skip */ }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orchestrator
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const renderVideo = async (
   videoPath: string,
@@ -162,11 +258,9 @@ export const renderVideo = async (
   pipPosition?: PipPosition,
 ): Promise<RenderResult> => {
 
-  // ── 0. Detect best encoder ────────────────────────────────────────────────
+  // ── 0. Detect best encoder + source frame rate (frame-exact, drift-free cuts) ─
   const encoder = await detectEncoder()
   console.log(`[render] encoder: ${encoder.label}`)
-
-  // ── 0b. Detect source frame rate — enables frame-exact, drift-free cutting ──
   const fps = await detectFps(videoPath)
   console.log(`[render] source fps: ${fps.num}/${fps.den} (${fps.value.toFixed(4)})`)
 
@@ -196,9 +290,9 @@ export const renderVideo = async (
     throw new Error(`EDL inválido: ${msg}`)
   }
 
-  // Scale factors depend on whether we also have a webcam pass
+  // Progress scale factors depend on whether we also have a webcam pass.
+  // Main video occupies 5→68% (with webcam) or 5→75% (without).
   const hasWebcam = !!webcamPath
-  // Main video occupies 5→75% (with webcam) or 5→92% (without)
   const mainSegEnd = hasWebcam ? 68 : 75
   const mainConcEnd = hasWebcam ? 72 : 80
   const loudEnd1 = hasWebcam ? 76 : 87
@@ -215,162 +309,18 @@ export const renderVideo = async (
   const outputPath = join(outputDir, `${baseName}_editado.mp4`)
 
   try {
-    // ── 3. Extract segments — video and audio on SEPARATE paths ───────────────
-    // CRITICAL (sync fix): cutting the main video WITH audio per segment and then
-    // concatenating made the concat demuxer chain each segment by its (slightly
-    // longer) AUDIO duration, padding the video timeline. Across ~70 segments this
-    // dropped the effective frame rate (29.97 → ~29.90) so the main video drifted
-    // out of sync with the webcam — which is cut video-only and stays at exactly
-    // 29.97. We now cut video-only (frame-locked, identical to the webcam path)
-    // and audio-only as PCM (no AAC priming, sample-exact concat), then mux them
-    // back together during loudnorm. This keeps the main video frame-locked to the
-    // webcam, eliminating the progressive drift.
-    const vClipPaths: string[] = []
-    const aClipPaths: string[] = []
-
-    for (let i = 0; i < ranges.length; i++) {
-      const r = ranges[i]
-      const vClip = join(clipsDir, `v_${String(i).padStart(3, '0')}.mp4`)
-      const aClip = join(clipsDir, `a_${String(i).padStart(3, '0')}.wav`)
-      vClipPaths.push(vClip)
-      aClipPaths.push(aClip)
-
-      const pct = 5 + Math.round((i / ranges.length) * (mainSegEnd - 5))
-      onProgress?.({ pct, message: `A extrair segmento ${i + 1}/${ranges.length}…` })
-
-      // This segment's frame count is the single source of truth for its length.
-      // Video is cut to EXACTLY segFrames frames; audio to EXACTLY segFrames/fps
-      // seconds. Cutting video by frame count (not -to) and matching the audio to
-      // it keeps every segment the same length in both streams — so the picture
-      // never drifts from the voice, no matter how many segments there are.
-      const segFrames = Math.max(1, Math.round((r.end - r.start) * fps.value))
-      const segDur = (segFrames * fps.den / fps.num).toFixed(6)
-
-      // Video-only — exactly segFrames frames, frame-locked to the webcam
-      await execFileAsync(getFFmpegPath(), [
-        '-y',
-        '-ss', String(r.start),
-        '-i', videoPath,
-        '-frames:v', String(segFrames),
-        ...encoder.videoArgs,
-        '-an',
-        '-avoid_negative_ts', 'make_zero',
-        vClip,
-      ])
-
-      // Audio-only PCM — exactly segDur seconds (apad covers any shortfall at EOF)
-      await execFileAsync(getFFmpegPath(), [
-        '-y',
-        '-ss', String(r.start),
-        '-i', videoPath,
-        '-t', segDur,
-        '-af', 'apad',
-        '-vn',
-        '-c:a', 'pcm_s16le',
-        aClip,
-      ])
-    }
+    // ── 3. Extract segments (video + audio on separate streams, in parallel) ──
+    const { vClipPaths, aClipPaths } = await extractSegments(
+      videoPath, ranges, fps, encoder, clipsDir, onProgress, 5, mainSegEnd,
+    )
 
     // ── 4. Concat video and audio separately ──────────────────────────────────
     onProgress?.({ pct: mainSegEnd + 1, message: 'A juntar segmentos…' })
+    const { videoConcat, audioConcat } = await concatStreams(vClipPaths, aClipPaths, workDir)
 
-    const vConcatList = join(workDir, 'vconcat.txt')
-    const aConcatList = join(workDir, 'aconcat.txt')
-    writeFileSync(vConcatList, vClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'))
-    writeFileSync(aConcatList, aClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'))
-
-    const videoConcat = join(workDir, 'video_concat.mp4')
-    const audioConcat = join(workDir, 'audio_concat.wav')
-    await execFileAsync(getFFmpegPath(), [
-      '-y', '-f', 'concat', '-safe', '0', '-i', vConcatList, '-c', 'copy', videoConcat,
-    ])
-    await execFileAsync(getFFmpegPath(), [
-      '-y', '-f', 'concat', '-safe', '0', '-i', aConcatList, '-c', 'copy', audioConcat,
-    ])
-
-    // ── 5. Loudnorm (two-pass), muxing the frame-locked video with the audio ───
+    // ── 5. Loudnorm pass 1 — measure on the concatenated audio ────────────────
     onProgress?.({ pct: mainConcEnd + 1, message: 'A normalizar áudio…' })
-
-    // Pass 1 — measure (on the concatenated audio)
-    let measureOutput = ''
-    await new Promise<void>((resolve, reject) => {
-      const ff = execFile(getFFmpegPath(), [
-        '-i', audioConcat,
-        '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json',
-        '-f', 'null', '-',
-      ])
-      ff.stderr?.on('data', (d: Buffer) => { measureOutput += d.toString() })
-      ff.on('close', () => resolve())
-      ff.on('error', reject)
-    })
-
-    // Extract stats and build pass-2 filter
-    const match = measureOutput.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/)
-    let loudnormFilter = 'loudnorm=I=-14:TP=-1:LRA=11'
-    if (match) {
-      try {
-        const stats = JSON.parse(match[0]) as LoudnormStats
-        loudnormFilter = [
-          'loudnorm=I=-14:TP=-1:LRA=11:linear=true',
-          `measured_I=${stats.input_i}`,
-          `measured_LRA=${stats.input_lra}`,
-          `measured_TP=${stats.input_tp}`,
-          `measured_thresh=${stats.input_thresh}`,
-          `offset=${stats.target_offset}`,
-        ].join(':')
-      } catch { /* use default filter */ }
-    }
-
-    // ── Helper: cut the webcam to frame-exact segments and concat to `outPath` ──
-    // Used by both output modes. Each webcam segment is cut to the SAME duration as
-    // the main video's frame-exact segment (identical frame count when the cameras
-    // share a frame rate — the usual case), keeping the webcam locked to the main
-    // video and therefore to the audio.
-    const buildWebcamConcat = async (outPath: string, basePct: number): Promise<void> => {
-      const offset = syncOffsetSec ?? 0
-      const wcFps = await detectFps(webcamPath!)
-      console.log(`[render] webcam fps: ${wcFps.num}/${wcFps.den} (${wcFps.value.toFixed(4)})`)
-      const wcClipsDir = join(workDir, 'wc_clips')
-      mkdirSync(wcClipsDir, { recursive: true })
-      const wcClipPaths: string[] = []
-      const wcConcatList = join(workDir, 'wcconcat.txt')
-
-      try {
-        for (let i = 0; i < ranges.length; i++) {
-          const r = ranges[i]
-          const clip = join(wcClipsDir, `wc_${String(i).padStart(3, '0')}.mp4`)
-          wcClipPaths.push(clip)
-
-          onProgress?.({ pct: basePct + Math.round((i / ranges.length) * 12), message: `A cortar câmara ${i + 1}/${ranges.length}…` })
-
-          const wcStart = Math.max(0, r.start - offset)
-          const segFrames = Math.max(1, Math.round((r.end - r.start) * fps.value))
-          const segDur = segFrames * fps.den / fps.num
-          const wcFrames = Math.max(1, Math.round(segDur * wcFps.value))
-
-          await execFileAsync(getFFmpegPath(), [
-            '-y',
-            '-ss', String(wcStart),
-            '-i', webcamPath!,
-            '-frames:v', String(wcFrames),
-            ...encoder.videoArgs,
-            // Re-encode (NOT stream-copy) so cuts are frame-accurate; stream-copy
-            // snaps to keyframes that differ between cameras and breaks sync.
-            '-an',
-            '-avoid_negative_ts', 'make_zero',
-            clip,
-          ])
-        }
-        writeFileSync(wcConcatList, wcClipPaths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'))
-        await execFileAsync(getFFmpegPath(), [
-          '-y', '-f', 'concat', '-safe', '0', '-i', wcConcatList, '-c', 'copy', outPath,
-        ])
-      } finally {
-        try { wcClipPaths.forEach((f) => unlinkSync(f)) } catch { /* skip */ }
-        try { unlinkSync(wcConcatList) } catch { /* skip */ }
-        try { rmdirSync(wcClipsDir) } catch { /* skip */ }
-      }
-    }
+    const loudnormFilter = await measureLoudnorm(audioConcat)
 
     // ── 6. Final encode ───────────────────────────────────────────────────────
     let webcamOutputPath: string | undefined
@@ -381,7 +331,7 @@ export const renderVideo = async (
       // into the same pass instead of producing the main video and then re-encoding
       // the whole 4K file again just to overlay — saving one full encode.
       const webcamConcat = join(workDir, 'webcam_concat.mp4')
-      await buildWebcamConcat(webcamConcat, loudEnd1)
+      await cutWebcam(webcamPath, ranges, fps, encoder, workDir, syncOffsetSec ?? 0, webcamConcat, onProgress, loudEnd1)
 
       onProgress?.({ pct: loudEnd1 + 14, message: 'A compor vídeo final…' })
       const overlayExpr: Record<PipPosition, string> = {
@@ -422,7 +372,7 @@ export const renderVideo = async (
       if (webcamPath) {
         const wcBase = basename(webcamPath, extname(webcamPath))
         webcamOutputPath = join(outputDir, `${wcBase}_editado.mp4`)
-        await buildWebcamConcat(webcamOutputPath, loudEnd2)
+        await cutWebcam(webcamPath, ranges, fps, encoder, workDir, syncOffsetSec ?? 0, webcamOutputPath, onProgress, loudEnd2)
       }
     }
 
@@ -433,16 +383,7 @@ export const renderVideo = async (
     return { outputPath, duration: totalDuration, segments: ranges.length, webcamOutputPath }
 
   } finally {
-    // Best-effort cleanup
-    if (existsSync(clipsDir)) {
-      try { readdirSync(clipsDir).forEach((f) => unlinkSync(join(clipsDir, f))) } catch { /* skip */ }
-    }
-    if (existsSync(workDir)) {
-      try {
-        readdirSync(workDir).forEach((f) => {
-          try { unlinkSync(join(workDir, f)) } catch { /* skip dirs */ }
-        })
-      } catch { /* skip */ }
-    }
+    // Best-effort cleanup — remove the whole working tree (files + dirs).
+    try { rmSync(workDir, { recursive: true, force: true }) } catch { /* skip */ }
   }
 }

@@ -62,7 +62,7 @@ interface AuthScreenProps {
   onResetDone: () => void
 }
 
-const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
+export const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
   const [view, setView] = useState<View>(isResetting ? 'reset' : 'login')
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
@@ -383,5 +383,3 @@ const AuthScreen = ({ isResetting, onResetDone }: AuthScreenProps) => {
     </section>
   )
 }
-
-export default AuthScreen

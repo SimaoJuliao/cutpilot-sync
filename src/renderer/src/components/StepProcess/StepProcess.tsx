@@ -1,6 +1,6 @@
 import type { RenderResult } from '@/types'
 import { strings } from '@i18n'
-import useStepProcess from './useStepProcess'
+import { useStepProcess } from './useStepProcess'
 import type { ProcessPhase } from './useStepProcess'
 
 const t = strings.stepProcess
@@ -141,7 +141,7 @@ interface StepProcessProps {
   onDone: (result: RenderResult) => void
 }
 
-const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, pipPosition, onDone }: StepProcessProps) => {
+export const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, pipPosition, onDone }: StepProcessProps) => {
   const { pct, msg, phase, error } = useStepProcess(videoPath, onDone, webcamPath, syncOffsetSec, pipPosition)
 
   if (error) {
@@ -214,5 +214,3 @@ const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, pipPosition, onDone
     </section>
   )
 }
-
-export default StepProcess

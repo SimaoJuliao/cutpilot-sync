@@ -1,71 +1,10 @@
 import { useState } from 'react'
 import { cn } from '@lib'
 import { strings } from '@i18n'
-import useStepUpload from './useStepUpload'
+import { useStepUpload } from './useStepUpload'
+import { ScreenIcon, CamIcon, CheckIcon, PlusIcon, TwoFilesIcon, PipModeIcon, SlidersIcon, ChevronIcon } from '@assets/icons'
 
 const t = strings.stepUpload
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const ScreenIcon = ({ size = 28 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    <circle cx="12" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.2" />
-  </svg>
-)
-
-const CamIcon = ({ size = 24 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="2" y="7" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
-    <path d="M16 10.5l6-4v11l-6-4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    <circle cx="9" cy="12.5" r="2.5" stroke="currentColor" strokeWidth="1.2" />
-  </svg>
-)
-
-const CheckIcon = ({ size = 20 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.4" />
-    <path d="M6 10l3 3 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-const PlusIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-)
-
-// Two overlapping frames — "two separate files" output mode
-const TwoFilesIcon = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="6" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-    <rect x="8" y="9" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="var(--card)" />
-  </svg>
-)
-
-// One frame with an inset tile — "single video, webcam overlaid" output mode
-const PipModeIcon = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="3" y="5" width="18" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-    <rect x="13" y="12" width="6" height="5" rx="1" fill="currentColor" />
-  </svg>
-)
-
-// Sliders — "advanced" toggle
-const SlidersIcon = ({ size = 13 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M3 6h9M15 6h2M3 14h2M8 14h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    <circle cx="13" cy="6" r="2" stroke="currentColor" strokeWidth="1.5" />
-    <circle cx="6" cy="14" r="2" stroke="currentColor" strokeWidth="1.5" />
-  </svg>
-)
-
-const ChevronIcon = ({ size = 12, className = '' }: { size?: number; className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true" className={className}>
-    <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -82,7 +21,7 @@ interface StepUploadProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const StepUpload = ({ onNext }: StepUploadProps) => {
+export const StepUpload = ({ onNext }: StepUploadProps) => {
   const {
     file, fileName, dragging,
     handlePick, handleDragOver, handleDragLeave, handleDrop,
@@ -533,5 +472,3 @@ const StepUpload = ({ onNext }: StepUploadProps) => {
     </section>
   )
 }
-
-export default StepUpload

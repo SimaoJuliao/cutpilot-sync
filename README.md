@@ -132,8 +132,9 @@ The recommended workflow uses **GitHub Actions** to build all platforms automati
 # 2. Commit, tag and push
 git add package.json
 git commit -m "chore: bump version to 0.0.2"
+git push
 git tag v0.0.2
-git push && git push --tags
+git push origin v0.0.2
 ```
 
 GitHub Actions picks up the tag and runs three parallel jobs — one on Windows, one on macOS, one on Linux. Each builds the installer for its own platform and uploads it to the same GitHub Release. The `latest.yml` is generated automatically, and users receive an update notification on the next app launch.
