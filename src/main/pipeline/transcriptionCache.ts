@@ -29,9 +29,13 @@ const getCacheDir = (): string => {
   return dir
 }
 
+// Bump when the Deepgram request parameters change, so existing cache entries
+// (transcribed with the old params) are invalidated automatically.
+const PARAMS_VERSION = 'detect-gapfill-v5'
+
 const getCacheKey = (videoPath: string): string => {
   const stat = statSync(videoPath)
-  const raw = `${videoPath}:${stat.size}:${stat.mtimeMs}`
+  const raw = `${videoPath}:${stat.size}:${stat.mtimeMs}:${PARAMS_VERSION}`
   return createHash('sha256').update(raw).digest('hex').slice(0, 16)
 }
 
