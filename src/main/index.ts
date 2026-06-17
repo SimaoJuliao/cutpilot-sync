@@ -10,6 +10,7 @@ import { transcribeVideo } from './pipeline/transcribe'
 import { getCachedTranscription, cacheTranscription } from './pipeline/transcriptionCache'
 import { buildPrompt } from './pipeline/buildPrompt'
 import { callClaude } from './pipeline/callClaude'
+import { refineEdl } from './pipeline/refineEdl'
 import { renderVideo } from './pipeline/render'
 
 // ── Single instance + deep link setup ──────────────────────────────────────
@@ -213,9 +214,12 @@ ipcMain.handle('call-claude', async (_event, { transcript, videoName, language }
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY não configurada — verifica o .env e reinicia')
   const prompt = buildPrompt(transcript, videoName, language)
   try {
-    return await callClaude(prompt, apiKey, (chunk) => {
+    const ranges = await callClaude(prompt, apiKey, (chunk) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send('claude-progress', chunk)
     })
+    // Deterministic enforcement: force-remove retake spans + trim dead air,
+    // independent of whether Claude honoured the ←RETAKE hints.
+    return refineEdl(ranges, transcript)
   } catch (err) { console.error('[call-claude]', err); throw err }
 })
 
