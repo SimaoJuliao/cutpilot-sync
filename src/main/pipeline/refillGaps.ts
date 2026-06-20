@@ -45,32 +45,46 @@ const MAX_GAPS = 50         // safety cap on re-transcription calls per video
 const CONCURRENCY = 3       // isolated clips re-transcribed in parallel
 
 // Trailing-complement recovery. The full-file pass sometimes drops a short, quiet
-// final word — typically the noun after a preposition ("…estratégias de [IA]",
-// "…pela procura de [AI]"). That word is below the silencedetect floor, so it never
-// shows up as a speech gap. Instead, probe a fixed window past any phrase that ENDS
-// on a preposition/article and is followed by real silence (a finished phrase, not a
-// mid-flow continuation), and re-transcribe it in isolation to recover the noun.
+// final word — the complement after a preposition ("…estratégias de [IA]") OR after a
+// copula/auxiliary verb ("…nem todos os negócios são [lucrativos]"). That word is
+// below the silencedetect floor, so it never shows up as a speech gap. Instead, probe
+// a fixed window past any phrase that ENDS on a word that grammatically demands a
+// continuation and is followed by real silence, and re-transcribe it in isolation.
 const PROBE = 1.8            // window length probed past the phrase end (s)
 const PROBE_LEAD = 0.8       // start the probe a bit BEFORE the final word too — the
-                            //   ASR sometimes mushes the dropped noun into the
-                            //   preposition's timing ("da" = "de" + "IA" overlapped)
+                            //   ASR sometimes mushes the dropped word into the trigger
+                            //   word's timing ("da" = "de" + "IA" overlapped)
 const MIN_TAIL_SIL = 1.0     // require this much silence after the phrase (s)
-const TAIL_PREPOSITIONS = new Set([
+
+// accent-preserving + punctuation-stripped, so "é" (copula) ≠ "e" (conjunction)
+const tailNorm = (s: string): string => s.toLowerCase().replace(/[^\p{L}]/gu, '')
+// Function words that leave a sentence dangling when final → probe for a dropped
+// complement after them. Prepositions/articles never end a sentence; copulas and
+// auxiliaries (ser/estar/ter/haver/ir/poder/dever) demand a predicate.
+const EXPECTS_COMPLEMENT = new Set([
   'de', 'da', 'do', 'das', 'dos', 'dum', 'duma', 'dumas', 'duns',
   'a', 'à', 'ao', 'às', 'aos', 'em', 'no', 'na', 'nos', 'nas', 'num', 'numa',
   'para', 'pra', 'por', 'pelo', 'pela', 'pelos', 'pelas',
   'com', 'sem', 'sob', 'sobre', 'entre', 'of', 'in', 'for', 'with',
+  'é', 'são', 'era', 'eram', 'foi', 'foram', 'será', 'serão', 'seja', 'sejam',
+  'está', 'estão', 'estava', 'estavam', 'tem', 'têm', 'tinha', 'tinham',
+  'há', 'havia', 'vai', 'vão', 'pode', 'podem', 'deve', 'devem',
 ])
+
 const normWord = (s: string): string =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '')
 
-// Words a completion probe must never "recover": the prepositions/articles
-// themselves plus fillers. A genuine dropped complement is a content word, so
-// excluding these (on top of the phrase's own words) leaves only the real noun and
-// blocks re-transcriptions of the preposition or stray fillers.
+// Words a completion probe must never "recover": the trigger words themselves
+// (prepositions, copulas/auxiliaries) plus articles/fillers. A genuine dropped
+// complement is a content word, so excluding these (on top of the phrase's own words)
+// leaves only the real complement. Accent-stripped to match normWord.
 const PROBE_DROP = new Set([
-  ...TAIL_PREPOSITIONS,
-  'um', 'uma', 'uns', 'umas', 'os', 'as', 'e', 'ou', 'que', 'se', 'eh', 'ah', 'hum', 'ok',
+  'de', 'da', 'do', 'das', 'dos', 'dum', 'duma', 'a', 'ao', 'as', 'os', 'em', 'no', 'na',
+  'nos', 'nas', 'num', 'numa', 'para', 'pra', 'por', 'pelo', 'pela', 'pelos', 'pelas',
+  'com', 'sem', 'sob', 'sobre', 'entre', 'of', 'in', 'for', 'with',
+  'um', 'uma', 'uns', 'umas', 'e', 'ou', 'que', 'se', 'eh', 'ah', 'hum', 'ok',
+  'e', 'sao', 'era', 'eram', 'foi', 'foram', 'sera', 'serao', 'esta', 'estao',
+  'tem', 'tinha', 'tinham', 'ha', 'havia', 'vai', 'vao', 'pode', 'podem', 'deve', 'devem',
 ])
 const MAX_PROBE_WORDS = 2  // a real completion is 1–2 words; longer = a noisy
                            //   re-transcription (e.g. a number spelled out) — discard
@@ -167,7 +181,7 @@ const completionProbes = (words: ScribeWord[]): Probe[] => {
   for (let i = 0; i < phrases.length - 1; i++) {
     const phrase = phrases[i]
     const last = phrase[phrase.length - 1]
-    if (!TAIL_PREPOSITIONS.has(normWord(last.text))) continue
+    if (!EXPECTS_COMPLEMENT.has(tailNorm(last.text))) continue
     const nextStart = phrases[i + 1][0].start
     if (nextStart - last.end < MIN_TAIL_SIL) continue   // mid-flow continuation, not a finished phrase
     // Exclude the words already in this phrase (so only a genuinely NEW trailing
