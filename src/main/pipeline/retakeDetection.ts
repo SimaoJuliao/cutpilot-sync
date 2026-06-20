@@ -168,10 +168,15 @@ export const detectRetakeChains = (phrases: ScribeWord[][]): RetakeChain[] => {
     if (members.length < 2) continue
     members.forEach(m => claimed.add(m))
 
-    const lastIdx = members[members.length - 1]
+    // Keeper = the LAST "full" take (≥ half the longest member's length). A
+    // trailing fragment is a final false start, so skip back to the last full
+    // take. We never discard the whole chain — that would drop the topic
+    // entirely even when a complete take exists inside it.
     const longest = Math.max(...members.map(c => phraseTokens[c].length))
-    const lastIsFragment = phraseTokens[lastIdx].length < longest * 0.5
-    const keeper = lastIsFragment ? null : lastIdx
+    let keeper = members[members.length - 1]
+    for (let k = members.length - 1; k >= 0; k--) {
+      if (phraseTokens[members[k]].length >= longest * 0.5) { keeper = members[k]; break }
+    }
     const retakes = members.filter(m => m !== keeper)
     chains.push({ members, retakes, keeper })
   }
