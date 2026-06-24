@@ -167,21 +167,81 @@ export const detectRetakeChains = (phrases: ScribeWord[][]): RetakeChain[] => {
 
     if (members.length < 2) continue
     members.forEach(m => claimed.add(m))
-
-    // Keeper = the LAST "full" take (≥ half the longest member's length). A
-    // trailing fragment is a final false start, so skip back to the last full
-    // take. We never discard the whole chain — that would drop the topic
-    // entirely even when a complete take exists inside it.
-    const longest = Math.max(...members.map(c => phraseTokens[c].length))
-    let keeper = members[members.length - 1]
-    for (let k = members.length - 1; k >= 0; k--) {
-      if (phraseTokens[members[k]].length >= longest * 0.5) { keeper = members[k]; break }
-    }
-    const retakes = members.filter(m => m !== keeper)
-    chains.push({ members, retakes, keeper })
+    chains.push({ members, ...pickKeeper(members, phraseTokens) })
   }
 
-  return chains
+  return bridgeChains(chains, phrases, phraseTokens)
+}
+
+// Bridging consecutive chains split by a near-miss similarity (see bridgeChains).
+const RETAKE_BRIDGE_GAP = 12       // s — chains this close may be one stumbling run
+const RETAKE_BRIDGE_OVERLAP = 0.6  // relaxed vocab overlap (vs 0.8 in-chain) to bridge
+
+/**
+ * Keeper = the LAST "full" take (≥ half the longest member's length). A trailing
+ * fragment is a final false start, so skip back to the last full take. We never
+ * discard the whole chain — that would drop the topic even when a complete take
+ * exists inside it.
+ */
+const pickKeeper = (members: number[], phraseTokens: string[][]): { keeper: number; retakes: number[] } => {
+  const longest = Math.max(...members.map(c => phraseTokens[c].length))
+  let keeper = members[members.length - 1]
+  for (let k = members.length - 1; k >= 0; k--) {
+    if (phraseTokens[members[k]].length >= longest * 0.5) { keeper = members[k]; break }
+  }
+  return { keeper, retakes: members.filter(m => m !== keeper) }
+}
+
+/**
+ * Bridge consecutive chains that are really takes of the SAME line but were split
+ * by a near-miss similarity — e.g. a long stumbling run where the final complete
+ * take just misses the in-chain 0.8 overlap against the previous take and ends up
+ * isolated in its own chain (and then lost when the editor cuts that sub-chain).
+ *
+ * Conservative: only merges chains that sit within a few seconds of each other AND
+ * whose FULLEST takes still share most of their vocabulary. Distinct topics don't
+ * share 60% of their substantial words, so this leaves normal chains untouched
+ * (validated: no change to any chain outside such a stumbling run).
+ */
+const bridgeChains = (chains: RetakeChain[], phrases: ScribeWord[][], phraseTokens: string[][]): RetakeChain[] => {
+  const span = (members: number[]): TimeInterval => ({
+    start: Math.min(...members.map(m => phrases[m][0].start)),
+    end: Math.max(...members.map(m => phrases[m][phrases[m].length - 1].end)),
+  })
+  // 0 if the spans overlap, else the silent gap between them.
+  const spanDistance = (a: TimeInterval, b: TimeInterval): number =>
+    a.end < b.start ? b.start - a.end : b.end < a.start ? a.start - b.end : 0
+
+  // Iterate to a fixed point: merge ANY two chains that are near in time (spans
+  // overlapping or within the gap) and whose fullest takes still overlap heavily.
+  // Span-based (not sequential) so it handles stumbling runs whose sub-chains
+  // interleave in time.
+  // Best overlap over ALL member pairs — robust to the ASR tokenising the same
+  // numbers differently across takes ("636" vs "636000000"), which would sink a
+  // single fullest-vs-fullest comparison. overlapCoefficient ignores sub-5-word
+  // fragments, so only substantial takes can drive a merge.
+  const bestPairOverlap = (a: number[], b: number[]): number => {
+    let best = 0
+    for (const x of a) for (const y of b) best = Math.max(best, overlapCoefficient(phraseTokens[x], phraseTokens[y]))
+    return best
+  }
+
+  const cur = chains.map(c => ({ ...c }))
+  for (let merged = true; merged; ) {
+    merged = false
+    for (let i = 0; i < cur.length && !merged; i++) {
+      for (let j = i + 1; j < cur.length; j++) {
+        if (spanDistance(span(cur[i].members), span(cur[j].members)) > RETAKE_BRIDGE_GAP) continue
+        if (bestPairOverlap(cur[i].members, cur[j].members) < RETAKE_BRIDGE_OVERLAP) continue
+        const members = [...new Set([...cur[i].members, ...cur[j].members])].sort((a, b) => a - b)
+        cur[i] = { members, ...pickKeeper(members, phraseTokens) }
+        cur.splice(j, 1)
+        merged = true
+        break
+      }
+    }
+  }
+  return cur
 }
 
 /** Indices of phrases that are retake attempts (for the ←RETAKE prompt hint). */
