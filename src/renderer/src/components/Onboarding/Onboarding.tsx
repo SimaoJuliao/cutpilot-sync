@@ -1,41 +1,7 @@
 import { strings } from '@i18n'
+import { ScreenIcon, CamIcon, AIIcon, ExportIcon } from '@assets/icons'
 
 const t = strings.onboarding
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const ScreenIcon = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <rect x="1.5" y="2.5" width="17" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M7 17.5h6M10 14.5v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-)
-
-const CamIcon = ({ size = 22 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <rect x="1.5" y="5.5" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M13.5 8.5l5-3v9l-5-3" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-    <circle cx="7.5" cy="10" r="2" stroke="currentColor" strokeWidth="1.1" />
-  </svg>
-)
-
-const AIIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M10 2v2M10 16v2M2 10h2M16 10h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.3" />
-    <circle cx="10" cy="10" r="1.5" fill="currentColor" />
-    <path d="M6.5 6.5l1.2 1.2M12.3 12.3l1.2 1.2M13.5 6.5l-1.2 1.2M7.7 12.3l-1.2 1.2"
-      stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-  </svg>
-)
-
-const ExportIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <rect x="3" y="2.5" width="10" height="13" rx="1" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M8 5.5h4M8 8.5h4M8 11.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    <path d="M13 13l4 4M15 13h2v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
 
 // ── Steps ─────────────────────────────────────────────────────────────────────
 
@@ -46,8 +12,8 @@ const STEPS = [
     desc: t.step1Desc,
     icon: (
       <div className="flex gap-2 items-center">
-        <span className="text-primary"><ScreenIcon /></span>
-        <span className="text-primary/55"><CamIcon /></span>
+        <span className="text-primary"><ScreenIcon size={22} /></span>
+        <span className="text-primary/55"><CamIcon size={22} /></span>
       </div>
     ),
   },
@@ -71,7 +37,7 @@ interface OnboardingProps {
   onDone: () => void
 }
 
-const Onboarding = ({ onDone }: OnboardingProps) => (
+export const Onboarding = ({ onDone }: OnboardingProps) => (
   <section
     className="flex flex-col h-full py-8 overflow-y-auto"
     style={{ padding: 'clamp(24px, 4vw, 72px)' }}
@@ -213,5 +179,3 @@ const Onboarding = ({ onDone }: OnboardingProps) => (
     </div>
   </section>
 )
-
-export default Onboarding

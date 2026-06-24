@@ -35,6 +35,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src/renderer/src'),
+        '@assets': resolve(__dirname, 'src/renderer/src/assets'),
         '@components': resolve(__dirname, 'src/renderer/src/components'),
         '@hooks': resolve(__dirname, 'src/renderer/src/hooks'),
         '@lib': resolve(__dirname, 'src/renderer/src/lib'),

@@ -30,7 +30,7 @@ export interface AppActions {
   reset: () => void
 }
 
-const useApp = (user: User | null): AppState & AppActions => {
+export const useApp = (user: User | null): AppState & AppActions => {
   const [step, setStep] = useState<Step>('onboarding')
   const [videoPath, setVideoPath] = useState<string | null>(null)
   const [webcamPath, setWebcamPath] = useState<string | null>(null)
@@ -83,5 +83,3 @@ const useApp = (user: User | null): AppState & AppActions => {
 
   return { step, videoPath, webcamPath, syncOffsetSec, pipPosition, result, finishOnboarding, startProcessing, finishDone, reset }
 }
-
-export default useApp

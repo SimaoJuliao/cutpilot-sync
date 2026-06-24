@@ -29,7 +29,7 @@ export interface UseStepUploadReturn {
   ffmpegOk: boolean | null
 }
 
-const useStepUpload = (): UseStepUploadReturn => {
+export const useStepUpload = (): UseStepUploadReturn => {
   const [file, setFile] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [webcamFile, setWebcamFile] = useState<string | null>(null)
@@ -80,5 +80,3 @@ const useStepUpload = (): UseStepUploadReturn => {
     ffmpegOk,
   }
 }
-
-export default useStepUpload

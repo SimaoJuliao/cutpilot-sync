@@ -3,51 +3,9 @@ import { strings } from '@i18n'
 import { supabase } from '@lib'
 import { cn } from '@lib'
 import { parseAuthError } from '@hooks'
+import { LockIcon, LogoutIcon, TrashIcon, CloseIcon, ChevronIcon, WarnIcon } from '@assets/icons'
 
 const t = strings.auth
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const LockIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <rect x="3" y="7" width="10" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
-    <path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-)
-
-const LogoutIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="M6 3H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    <path d="M10 5l3 3-3 3M13 8H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-const TrashIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-    <path d="M2 4h12M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M6 7v5M10 7v5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    <path d="M3 4l1 9a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-  </svg>
-)
-
-const CloseIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-    <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-)
-
-const ChevronIcon = () => (
-  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-    <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-)
-
-const WarnIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-    <path d="M10 3L18.5 17.5H1.5L10 3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    <line x1="10" y1="9" x2="10" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    <circle cx="10" cy="15.5" r="0.75" fill="currentColor" />
-  </svg>
-)
 
 // ── Field ─────────────────────────────────────────────────────────────────────
 
@@ -108,7 +66,7 @@ const ActionRow = ({ icon, label, onClick, variant = 'default' }: ActionRowProps
       'shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200',
       variant === 'danger' ? 'text-destructive/60' : 'text-primary/60',
     )}>
-      <ChevronIcon />
+      <ChevronIcon direction="right" />
     </span>
   </button>
 )
@@ -123,7 +81,7 @@ interface AccountSettingsProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) => {
+export const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) => {
   const [section, setSection] = useState<'main' | 'password' | 'delete'>('main')
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
@@ -368,5 +326,3 @@ const AccountSettings = ({ email, onClose, onSignOut }: AccountSettingsProps) =>
     </div>
   )
 }
-
-export default AccountSettings

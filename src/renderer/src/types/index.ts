@@ -1,11 +1,2 @@
-export type {
-  ScribeWord,
-  Transcript,
-  EdlRange,
-  BuildPromptOptions,
-  RenderOptions,
-  RenderProgress,
-  RenderResult,
-  ElectronFile,
-  ElectronAPI,
-} from './electron'
+export * from './electron'
+export * from './icons'

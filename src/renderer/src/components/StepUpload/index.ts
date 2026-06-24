@@ -1,1 +1,1 @@
-export { default } from './StepUpload'
+export * from './StepUpload'

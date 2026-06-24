@@ -110,7 +110,7 @@ export interface UseStepProcessReturn {
   error: string | null
 }
 
-const useStepProcess = (
+export const useStepProcess = (
   videoPath: string,
   onDone: (result: RenderResult) => void,
   webcamPath?: string,
@@ -194,5 +194,3 @@ const useStepProcess = (
 
   return { pct, msg: PHASE_MSG[phase], phase, error }
 }
-
-export default useStepProcess

@@ -1,6 +1,7 @@
 import type { RenderResult } from '@/types'
 import { strings } from '@i18n'
 import { fmtTime, basename } from '@lib'
+import { ScreenIcon, CamIcon, FolderIcon } from '@assets/icons'
 
 const t = strings.stepDone
 
@@ -9,28 +10,7 @@ interface StepDoneProps {
   onNew: () => void
 }
 
-const ScreenIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
-    <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-  </svg>
-)
-
-const CamIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <rect x="2" y="7" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
-    <path d="M16 10.5l6-4v11l-6-4" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-  </svg>
-)
-
-const FolderIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
-      stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-  </svg>
-)
-
-const StepDone = ({ result, onNew }: StepDoneProps) => {
+export const StepDone = ({ result, onNew }: StepDoneProps) => {
   const { outputPath, duration, segments, webcamOutputPath } = result
   const folderPath = outputPath.replace(/[/\\][^/\\]+$/, '')
   const fileName = basename(outputPath)
@@ -101,7 +81,7 @@ const StepDone = ({ result, onNew }: StepDoneProps) => {
       {/* Output files */}
       <div className="w-full max-w-sm flex flex-col gap-1.5">
         <div className="glass rounded-md flex items-center gap-3 px-4 py-2.5">
-          <span className="text-muted-foreground/40 shrink-0"><ScreenIcon /></span>
+          <span className="text-muted-foreground/40 shrink-0"><ScreenIcon size={12} /></span>
           <div className="flex flex-col min-w-0 flex-1">
             <span className="font-mono text-[9px] text-muted-foreground/35 tracking-widest uppercase">
               {t.mainFileLabel}
@@ -115,7 +95,7 @@ const StepDone = ({ result, onNew }: StepDoneProps) => {
         {hasDual && webcamOutputPath && (
           <div className="glass rounded-md flex items-center gap-3 px-4 py-2.5
                           border-success/20 bg-success/5">
-            <span className="text-success/40 shrink-0"><CamIcon /></span>
+            <span className="text-success/40 shrink-0"><CamIcon size={12} /></span>
             <div className="flex flex-col min-w-0 flex-1">
               <span className="font-mono text-[9px] text-success/35 tracking-widest uppercase">
                 {t.webcamFileLabel}
@@ -155,5 +135,3 @@ const StepDone = ({ result, onNew }: StepDoneProps) => {
     </section>
   )
 }
-
-export default StepDone

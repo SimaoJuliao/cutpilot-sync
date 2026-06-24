@@ -10,23 +10,8 @@
  *    120s are flagged ←RETAKE so Claude never has to infer it
  */
 
-import type { Transcript, ScribeWord } from '../../../src/renderer/src/types/electron'
-
-// ── Retake detection helpers ────────────────────────────────────────────────
-
-/** Normalise the first N words of a phrase for prefix-matching. */
-const prefixKey = (phrase: ScribeWord[], n = 4): string =>
-  phrase
-    .slice(0, Math.min(n, phrase.length))
-    .map(w =>
-      w.text
-        .toLowerCase()
-        // strip punctuation but keep accented PT/EN letters
-        .replace(/[^\wáéíóúãõâêîôûàçüñ]/g, '')
-        .trim()
-    )
-    .filter(Boolean)
-    .join(' ')
+import type { Transcript } from '../../../src/renderer/src/types/electron'
+import { groupPhrases, detectRetakeIndices } from './retakeDetection'
 
 // ── Main export ─────────────────────────────────────────────────────────────
 
@@ -37,67 +22,9 @@ export const buildPrompt = (
 ): string => {
   const words = transcript.words.filter(w => w.type !== 'spacing')
 
-  // ── 1. Group words into phrase-lines ──────────────────────────────────────
-  // Break on silence ≥ 0.5s OR speaker change (same rule as video-use skill)
-  const phrases: ScribeWord[][] = []
-  let current: ScribeWord[] = []
-
-  for (const w of words) {
-    if (current.length === 0) { current.push(w); continue }
-
-    const prev = current[current.length - 1]
-    const gap = w.start - prev.end
-    const speakerChanged = w.speaker !== undefined
-      && prev.speaker !== undefined
-      && w.speaker !== prev.speaker
-
-    if (gap >= 0.5 || speakerChanged) { phrases.push(current); current = [w] }
-    else { current.push(w) }
-  }
-  if (current.length > 0) phrases.push(current)
-
-  // ── 2. Detect retake chains ───────────────────────────────────────────────
-  // A retake chain = group of phrases with the same 4-word prefix where each
-  // member starts within RETAKE_WINDOW seconds of the previous member's end.
-  //
-  // IMPORTANT: we mark all EXCEPT THE LAST member as ←RETAKE.
-  // The LAST occurrence is always the final, most complete delivery — that's
-  // the one to keep. Earlier attempts (including the first) are the retakes.
-  //
-  // Algorithm:
-  //   For each phrase i (skipping already-marked retakes), collect the full
-  //   chain of phrases ahead that share the same prefix and are within the
-  //   window. Then mark everything in the chain EXCEPT the last as RETAKE.
-
-  const RETAKE_WINDOW = 120          // seconds between chain members
-  const retakeIdx = new Set<number>()
-
-  for (let i = 0; i < phrases.length; i++) {
-    if (retakeIdx.has(i)) continue                     // already marked, skip
-
-    const keyI = prefixKey(phrases[i])
-    if (!keyI || keyI.split(' ').length < 3) continue  // prefix too short
-
-    // Build the chain starting at i
-    const chain: number[] = [i]
-    let prevEnd = phrases[i][phrases[i].length - 1].end
-
-    for (let j = i + 1; j < phrases.length; j++) {
-      const startJ = phrases[j][0].start
-      if (startJ - prevEnd > RETAKE_WINDOW) break      // window closed — stop looking
-      if (prefixKey(phrases[j]) === keyI) {
-        chain.push(j)
-        prevEnd = phrases[j][phrases[j].length - 1].end
-      }
-    }
-
-    if (chain.length > 1) {
-      // Mark all EXCEPT the LAST (final clean delivery) as RETAKE
-      for (let k = 0; k < chain.length - 1; k++) {
-        retakeIdx.add(chain[k])
-      }
-    }
-  }
+  // ── 1. Group words into phrases + detect retake chains (shared detector) ──
+  const phrases = groupPhrases(words)
+  const retakeIdx = detectRetakeIndices(phrases)
 
   // ── 3. Format transcript lines ────────────────────────────────────────────
   const lines: string[] = []
@@ -151,6 +78,7 @@ WARM-UP & SETUP (cut aggressively)
 
 FALSE STARTS & RETAKE CHAINS
 - ←RETAKE lines are already detected for you. But there may be single-attempt false starts not caught by the detector: a phrase that ends with "épá!", "não", "espera", "enganei-me", "poxa", or cuts off mid-thought → CUT that phrase.
+- REPHRASED REPEATS: if two nearby phrases convey the SAME information with different wording (e.g. "E a avaliação total ficaria nos 1.77 bilhões…" followed by "Isto faz com que a avaliação ficasse nos 1.77 bilhões…"), they are takes of the same line even if neither is marked — keep ONLY the later one.
 - When in doubt whether two nearby clean versions cover the same beat, keep the LATER, more complete one and cut the earlier shorter version.
 
 SILENCE GAPS

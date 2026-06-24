@@ -1,2 +1,2 @@
-export { default as AuthScreen } from './AuthScreen'
-export { default as AccountSettings } from './AccountSettings'
+export * from './AuthScreen'
+export * from './AccountSettings'

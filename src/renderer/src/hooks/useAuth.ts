@@ -36,7 +36,7 @@ export interface UseAuthReturn {
   deleteAccount: () => Promise<void>
 }
 
-const useAuth = (): UseAuthReturn => {
+export const useAuth = (): UseAuthReturn => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isResetting, setIsResetting] = useState(false)
@@ -160,5 +160,3 @@ const useAuth = (): UseAuthReturn => {
     sendPasswordReset, updatePassword, deleteAccount,
   }
 }
-
-export default useAuth

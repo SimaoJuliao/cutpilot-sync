@@ -9,6 +9,11 @@
  *   filler_words:    true         — keeps "uh", "um", "hmm" as cut signals
  *   punctuate:       true         — cleaner text for Claude to read
  *   smart_format:    true         — numbers, dates formatted correctly
+ *
+ * NOTE: `language: multi` was tried to catch English terms mixed into PT, but
+ * it regressed some regions (dropped whole sentences the single-language pass
+ * kept). detect_language is the better baseline; recovering the remaining
+ * dropped spans belongs in a separate additive gap-refill pass, not here.
  */
 
 import { spawn } from 'child_process'
@@ -18,6 +23,7 @@ import { tmpdir } from 'os'
 import axios from 'axios'
 import type { Transcript, ScribeWord } from '../../../src/renderer/src/types/electron'
 import { getFFmpegPath } from './ffmpeg'
+import { refillGaps } from './refillGaps'
 
 type ProgressCallback = (pct: number) => void
 
@@ -118,8 +124,7 @@ export const transcribeVideo = async (
     throw err
   }
 
-  if (existsSync(audioPath)) unlinkSync(audioPath)
-  onProgress?.(92)
+  onProgress?.(92)  // keep the audio file — the gap-refill pass below needs it
 
   // ── Step 3: Map Deepgram words → ScribeWord[] ────────────────────────────
   const data = response.data as DeepgramResponse
@@ -156,8 +161,17 @@ export const transcribeVideo = async (
     })
   }
 
+  // ── Step 4: Gap refill — additively recover speech the full-file pass dropped ──
+  let finalWords = scribeWords
+  try {
+    finalWords = await refillGaps(audioPath, scribeWords, apiKey, (f) => onProgress?.(92 + Math.round(f * 7)))
+  } catch (e) {
+    console.warn('[transcribe] gap refill skipped:', e instanceof Error ? e.message : e)
+  }
+  if (existsSync(audioPath)) unlinkSync(audioPath)
+
   return {
-    words: scribeWords,
+    words: finalWords,
     language: lang,
     text,
   }
