@@ -18,6 +18,7 @@ export const callClaude = async (
   const stream = client.messages.stream({
     model: MODEL,
     max_tokens: 8192,
+    temperature: 0,   // deterministic EDL — same transcript in, same cuts out
     messages: [{ role: 'user', content: prompt }],
   })
 

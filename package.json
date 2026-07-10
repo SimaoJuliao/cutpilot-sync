@@ -1,6 +1,6 @@
 {
   "name": "cutpilot-sync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "CutPilot Sync — AI-powered video editor: transcribe, cut, render",
   "author": {
     "name": "Simão Julião",
@@ -11,7 +11,9 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "dist": "npm run build && electron-builder",
-    "start": "electron-vite preview"
+    "start": "electron-vite preview",
+    "edl:save": "node scripts/edl-regression.mjs save",
+    "edl:check": "node scripts/edl-regression.mjs check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
