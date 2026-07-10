@@ -43,6 +43,9 @@ desktop.ini
 .vite/
 .cache/
 
+# ── EDL regression baselines (private transcript content — never commit) ──────
+.edl-baselines/
+
 # ── Electron builder artifacts ────────────────────────────────────────────────
 *.exe
 *.dmg
