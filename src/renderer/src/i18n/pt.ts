@@ -4,6 +4,10 @@ export const pt = {
     accountBtn: 'conta',
     accountBtnLabel: 'Definições da conta',
     closeLabel: 'Fechar definições',
+    loadingLabel: 'A carregar',
+    offlineTitle: 'SEM LIGAÇÃO.',
+    offlineDesc: 'Não foi possível contactar o servidor de autenticação. Verifica a tua ligação à internet e tenta novamente.',
+    offlineRetryBtn: 'Tentar novamente',
   },
 
   stepLabels: {
@@ -55,8 +59,8 @@ export const pt = {
     webcamPrompt: 'Adicionar vídeo da câmara',
     webcamHint: 'Será cortado nos mesmos pontos — sem áudio necessário',
     webcamReadyLabel: 'Câmara pronta',
-    syncOffsetLabel: 'Offset de sync (seg.)',
-    syncOffsetHint: '0 = arrancaram em simultâneo',
+    syncSectionLabel: 'Sincronismo',
+    syncOffsetHint: 'Só é preciso se as duas gravações não arrancaram ao mesmo tempo.',
     // Header above the two zones
     sectionTitle: 'Selecionar vídeos',
     // Drag-over state
@@ -80,9 +84,26 @@ export const pt = {
     pipScreenTag: 'Ecrã',
     pipCamTag: 'Cam',
     // Advanced + sync stepper
-    advancedLabel: 'Avançado',
     syncDecrease: 'Diminuir desfasamento',
     syncIncrease: 'Aumentar desfasamento',
+
+    // ── Preview de sincronismo ───────────────────────────────────────────
+    syncMarkerOpen: 'Acertar com preview',
+    syncMarkerTitle: 'ACERTAR O SINCRONISMO',
+    syncMarkerIntro: 'Os dois vídeos correm ao mesmo tempo com o offset aplicado. Ouve a voz do vídeo principal e vê os lábios na webcam — vai ajustando o offset até baterem certo.',
+    syncMarkerPreparing: 'A preparar os vídeos…',
+    syncMarkerPreparingHint: 'Só na primeira vez. Depois fica em cache.',
+    syncMarkerFailed: 'Não foi possível preparar os vídeos.',
+    syncMarkerMain: 'Vídeo principal (com som)',
+    syncMarkerWebcam: 'Webcam (sem som)',
+    syncMarkerPrevFrame: 'Recuar 1 frame',
+    syncMarkerNextFrame: 'Avançar 1 frame',
+    syncMarkerPlayPause: 'Reproduzir / pausar os dois',
+    syncMarkerOffsetLabel: 'Offset',
+    syncMarkerApply: 'Aplicar offset',
+    syncMarkerWindowHint: 'Mostra os primeiros {s}s de cada vídeo.',
+    syncMarkerOutOfRange: 'Fora do intervalo da webcam neste offset',
+    syncMarkerClose: 'Fechar',
   },
 
   stepProcess: {
@@ -176,6 +197,7 @@ export const pt = {
       passwordMismatch: 'As passwords não coincidem.',
       emailNotConfirmed: 'Email ainda não confirmado. Verifica a tua caixa de entrada.',
       rateLimit: 'Demasiadas tentativas. Aguarda um momento.',
+      connectionFailed: 'Não foi possível ligar ao servidor. Verifica a tua ligação à internet.',
       generic: 'Algo correu mal. Tenta novamente.',
     },
   },

@@ -49,7 +49,10 @@ const STEP_ORDER = ['upload', 'process', 'done'] as const
 const isMac = /mac/i.test(navigator.platform)
 
 const App = () => {
-  const { user, loading: authLoading, isResetting, finishReset, signOut } = useAuth()
+  const {
+    user, loading: authLoading, connectionError, retryConnection,
+    isResetting, finishReset, signOut,
+  } = useAuth()
   const {
     step, videoPath, webcamPath, syncOffsetSec, pipPosition, result,
     finishOnboarding, startProcessing, finishDone, reset,
@@ -65,7 +68,7 @@ const App = () => {
 
   if (authLoading) {
     return (
-      <div className="h-full flex items-center justify-center relative" aria-busy="true" aria-label="A carregar">
+      <div className="h-full flex items-center justify-center relative" aria-busy="true" aria-label={strings.app.loadingLabel}>
         <Background />
         <div className="relative z-20 flex flex-col items-center gap-4">
           <span className="font-display text-[26px] tracking-[0.35em] text-foreground/50 uppercase">
@@ -80,6 +83,39 @@ const App = () => {
               />
             ))}
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Connection error ───────────────────────────────────────────────────────
+  // The auth backend could not be reached. Without this the app would sit on the
+  // splash forever, giving no clue that the problem is the server, not the app.
+
+  if (connectionError && !user) {
+    return (
+      <div className="h-full flex items-center justify-center relative">
+        <Background />
+        <div className="relative z-20 flex flex-col items-center text-center max-w-[380px] px-6 animate-fade-up">
+          <span className="font-display text-[22px] tracking-[0.35em] text-foreground/40 uppercase mb-8">
+            CUTPILOT
+          </span>
+          <h1 className="font-display text-[40px] leading-[0.9] text-foreground uppercase mb-4">
+            {strings.app.offlineTitle}
+          </h1>
+          <p role="alert" className="font-mono text-[11px] leading-relaxed text-muted-foreground/70 mb-8">
+            {strings.app.offlineDesc}
+          </p>
+          <button
+            type="button"
+            onClick={retryConnection}
+            className="btn-shine h-11 px-8 bg-primary text-primary-foreground
+                       font-display text-lg tracking-[0.12em] uppercase
+                       hover:bg-primary/90 active:scale-[0.98] transition-all duration-150
+                       shadow-[0_4px_20px_hsl(var(--primary)/0.2)]"
+          >
+            {strings.app.offlineRetryBtn}
+          </button>
         </div>
       </div>
     )

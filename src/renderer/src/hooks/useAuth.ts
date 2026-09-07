@@ -6,6 +6,12 @@ import { supabase } from '@lib'
 
 export const parseAuthError = (err: unknown): string => {
   const msg = (err instanceof Error ? err.message : String(err)).toLowerCase()
+  // Backend unreachable (DNS failure, offline, project deleted) — say so plainly
+  // instead of the generic message, which sends people hunting for a typo in
+  // credentials that are perfectly fine.
+  if (msg.includes('fetch failed') || msg.includes('failed to fetch') ||
+      msg.includes('networkerror') || msg.includes('enotfound') || msg.includes('econnrefused'))
+    return 'Não foi possível ligar ao servidor. Verifica a tua ligação à internet.'
   if (msg.includes('invalid login credentials') || msg.includes('invalid credentials'))
     return 'Email ou password incorretos.'
   if (msg.includes('already registered') || msg.includes('user already registered'))
@@ -23,9 +29,16 @@ export const parseAuthError = (err: unknown): string => {
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
+// The session check must never leave the app on the splash forever. If Supabase
+// cannot be reached (offline, DNS failure, deleted project) getSession() can hang
+// indefinitely, so we cap it and fall through to an actionable error screen.
+const SESSION_TIMEOUT_MS = 10_000
+
 export interface UseAuthReturn {
   user: User | null
   loading: boolean
+  connectionError: boolean  // true when the session check failed/timed out
+  retryConnection: () => void
   isResetting: boolean    // true while showing "set new password" after deep link
   finishReset: () => void
   signIn: (email: string, pw: string) => Promise<void>
@@ -39,17 +52,56 @@ export interface UseAuthReturn {
 export const useAuth = (): UseAuthReturn => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [connectionError, setConnectionError] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
 
   // useRef so setting the flag is synchronous and never affected by render cycles
   const expectingRecovery = useRef(false)
 
-  useEffect(() => {
-    // Restore existing session
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null)
+  /**
+   * Restore an existing session, settling exactly once — by whichever of the
+   * call and the timeout finishes first. Standalone rather than inlined in the
+   * mount effect so "Tentar novamente" can redo just this, instead of also
+   * tearing down and rebuilding the auth subscription and deep-link listener.
+   */
+  const checkSession = useCallback(() => {
+    setLoading(true)
+    setConnectionError(false)
+
+    let settled = false
+    const settle = (sessionUser: User | null, failed: boolean) => {
+      if (settled) return
+      settled = true
+      setUser(sessionUser)
+      setConnectionError(failed)
       setLoading(false)
-    })
+    }
+
+    const timeout = setTimeout(() => {
+      console.error(`[auth] getSession did not resolve in ${SESSION_TIMEOUT_MS}ms — backend unreachable`)
+      settle(null, true)
+    }, SESSION_TIMEOUT_MS)
+
+    supabase.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[auth] getSession error:', error)
+          settle(null, true)
+          return
+        }
+        settle(data.session?.user ?? null, false)
+      })
+      .catch((err) => {
+        console.error('[auth] getSession failed:', err)
+        settle(null, true)
+      })
+      .finally(() => clearTimeout(timeout))
+
+    return () => clearTimeout(timeout)
+  }, [])
+
+  useEffect(() => {
+    const cancelSessionCheck = checkSession()
 
     // React to auth state changes.
     // PASSWORD_RECOVERY fires in some Supabase flows; SIGNED_IN fires when we
@@ -116,8 +168,11 @@ export const useAuth = (): UseAuthReturn => {
       console.log('[deep-link] URL did not match any recovery pattern — ignored')
     })
 
-    return () => { subscription.unsubscribe(); cleanupLink() }
-  }, [])
+    return () => { cancelSessionCheck(); subscription.unsubscribe(); cleanupLink() }
+  }, [checkSession])
+
+  /** "Tentar novamente" on the connection-error screen. */
+  const retryConnection = checkSession
 
   const signIn = useCallback(async (email: string, pw: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password: pw })
@@ -155,7 +210,7 @@ export const useAuth = (): UseAuthReturn => {
   const finishReset = useCallback(() => setIsResetting(false), [])
 
   return {
-    user, loading, isResetting, finishReset,
+    user, loading, connectionError, retryConnection, isResetting, finishReset,
     signIn, signUp, signOut,
     sendPasswordReset, updatePassword, deleteAccount,
   }
