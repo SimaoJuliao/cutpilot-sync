@@ -26,9 +26,34 @@ const FILLER_WORDS = new Set([
 const normToken = (s: string): string =>
   s.toLowerCase().replace(/[^\wáéíóúãõâêîôûàçüñ]/g, '').trim()
 
-/** Normalised word tokens of a phrase, with leading fillers stripped. */
+// Deepgram's smart_format renders the SAME spoken figure differently across
+// takes — "636 milhões" in one and "636000000" in the next, "23 mil" vs
+// "23000". That sinks the vocabulary overlap between takes of a numbers-heavy
+// line, fragmenting what is really one retake chain. Canonicalise both sides:
+//   - digit-only tokens lose their thousands-scaling zeros ("636000000" → "636"),
+//   - scale words (which the other take absorbed into those zeros) are dropped.
+// Grouped by 3 so only thousands-scaling collapses — "30" never becomes "3".
+const NUMBER_SCALE_WORDS = new Set([
+  'mil', 'milhar', 'milhares',
+  'milhão', 'milhao', 'milhões', 'milhoes',
+  'bilião', 'biliao', 'biliões', 'bilioes', 'bilhão', 'bilhao', 'bilhões', 'bilhoes',
+  'trilião', 'triliao', 'triliões', 'trilioes', 'trilhão', 'trilhao', 'trilhões', 'trilhoes',
+  'thousand', 'million', 'billion', 'trillion',
+])
+
+const canonNumber = (t: string): string => {
+  if (!/^\d+$/.test(t)) return t
+  let d = t
+  while (d.length > 3 && d.endsWith('000')) d = d.slice(0, -3)
+  return d
+}
+
+/** Normalised word tokens of a phrase, with leading fillers stripped and
+ *  numbers canonicalised so takes match regardless of how the ASR wrote them. */
 const contentTokens = (phrase: ScribeWord[]): string[] => {
-  const ts = phrase.map(w => normToken(w.text)).filter(Boolean)
+  const ts = phrase
+    .map(w => canonNumber(normToken(w.text)))
+    .filter(t => t && !NUMBER_SCALE_WORDS.has(t))
   while (ts.length > 0 && FILLER_WORDS.has(ts[0])) ts.shift()
   return ts
 }
