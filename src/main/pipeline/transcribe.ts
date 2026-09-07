@@ -9,6 +9,7 @@
  *   filler_words:    true         — keeps "uh", "um", "hmm" as cut signals
  *   punctuate:       true         — cleaner text for Claude to read
  *   smart_format:    true         — numbers, dates formatted correctly
+ *   keyterm:         KEYTERMS     — domain glossary so proper nouns survive (see keyterms.ts)
  *
  * NOTE: `language: multi` was tried to catch English terms mixed into PT, but
  * it regressed some regions (dropped whole sentences the single-language pass
@@ -24,6 +25,7 @@ import axios from 'axios'
 import type { Transcript, ScribeWord } from '../../../src/renderer/src/types/electron'
 import { getFFmpegPath } from './ffmpeg'
 import { refillGaps } from './refillGaps'
+import { KEYTERMS, MAX_KEYTERMS } from './keyterms'
 
 type ProgressCallback = (pct: number) => void
 
@@ -82,37 +84,37 @@ export const transcribeVideo = async (
 
   // ── Step 2: Upload to Deepgram ────────────────────────────────────────────
   const fileSize = statSync(audioPath).size
-  const params = new URLSearchParams({
-    model: 'nova-3',
-    detect_language: 'true',
-    diarize: 'true',
-    filler_words: 'true',   // keeps uh/um/hmm so Claude can cut them
-    punctuate: 'true',
-    smart_format: 'true',
+
+  const buildUrl = (withKeyterms: boolean): string => {
+    const params = new URLSearchParams({
+      model: 'nova-3',
+      detect_language: 'true',
+      diarize: 'true',
+      filler_words: 'true',   // keeps uh/um/hmm so Claude can cut them
+      punctuate: 'true',
+      smart_format: 'true',
+    })
+    // One `keyterm` per term (Deepgram takes no delimited list).
+    if (withKeyterms) for (const term of KEYTERMS.slice(0, MAX_KEYTERMS)) params.append('keyterm', term)
+    return `https://api.deepgram.com/v1/listen?${params}`
+  }
+
+  // A fresh read stream per attempt — a consumed one cannot be re-sent.
+  const post = (url: string) => axios.post(url, createReadStream(audioPath), {
+    headers: {
+      Authorization: `Token ${apiKey}`,
+      'Content-Type': 'audio/wav',
+      'Content-Length': String(fileSize),
+    },
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    onUploadProgress: ({ loaded, total }: { loaded: number; total?: number }) => {
+      if (total) onProgress?.(25 + Math.round((loaded / total) * 65))
+    },
+    timeout: 30 * 60 * 1000,
   })
 
-  onProgress?.(25)
-
-  let response
-  try {
-    response = await axios.post(
-      `https://api.deepgram.com/v1/listen?${params}`,
-      createReadStream(audioPath),
-      {
-        headers: {
-          Authorization: `Token ${apiKey}`,
-          'Content-Type': 'audio/wav',
-          'Content-Length': String(fileSize),
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-        onUploadProgress: ({ loaded, total }: { loaded: number; total?: number }) => {
-          if (total) onProgress?.(25 + Math.round((loaded / total) * 65))
-        },
-        timeout: 30 * 60 * 1000,
-      }
-    )
-  } catch (err) {
+  const fail = (err: unknown): never => {
     if (existsSync(audioPath)) unlinkSync(audioPath)
     if (axios.isAxiosError(err) && err.response) {
       const status = err.response.status
@@ -123,6 +125,20 @@ export const transcribeVideo = async (
     }
     throw err
   }
+
+  onProgress?.(25)
+
+  // Deepgram documents keyterm prompting for nova-3 but says nothing about
+  // combining it with detect_language. If that combination is rejected, fall
+  // back to a plain request rather than failing the whole job — a transcript
+  // without the glossary is still a transcript.
+  const response = await post(buildUrl(true)).catch((err) => {
+    if (axios.isAxiosError(err) && err.response?.status === 400) {
+      console.warn('[transcribe] Deepgram rejected keyterms, retrying without them:', JSON.stringify(err.response.data))
+      return post(buildUrl(false)).catch(fail)
+    }
+    return fail(err)
+  })
 
   onProgress?.(92)  // keep the audio file — the gap-refill pass below needs it
 
