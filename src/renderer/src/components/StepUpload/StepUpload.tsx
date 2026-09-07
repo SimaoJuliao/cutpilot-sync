@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { cn } from '@lib'
 import { strings } from '@i18n'
 import { useStepUpload } from './useStepUpload'
-import { ScreenIcon, CamIcon, CheckIcon, PlusIcon, TwoFilesIcon, PipModeIcon, SlidersIcon, ChevronIcon } from '@assets/icons'
+import { SyncMarker } from './SyncMarker'
+import { ScreenIcon, CamIcon, CheckIcon, PlusIcon, TwoFilesIcon, PipModeIcon, SlidersIcon } from '@assets/icons'
 
 const t = strings.stepUpload
 
@@ -32,14 +33,11 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
     ffmpegOk,
   } = useStepUpload()
 
-  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showSyncMarker, setShowSyncMarker] = useState(false)
 
   const handleKey = (e: React.KeyboardEvent, fn: () => void) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn() }
   }
-
-  // Clamp + round to 1 decimal so stepping never produces float noise (e.g. 0.30000004)
-  const clampStep = (v: number) => Math.min(60, Math.max(-60, Math.round(v * 10) / 10))
 
   // Output mode is derived from pipPosition: null = two separate files, a corner = overlay.
   const mode: 'separate' | 'pip' = pipPosition ? 'pip' : 'separate'
@@ -332,72 +330,42 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
                   </div>
                 )}
 
-                {/* Advanced (collapsible) — sync offset, rarely needed */}
-                <div className="mt-auto pt-1">
+                {/* Sync — shown directly rather than behind an "Advanced" toggle.
+                    The offset is set inside the preview, so this section is a
+                    single button, and hiding one button behind a disclosure only
+                    costs a click and makes the feature harder to find. */}
+                <div className="mt-auto pt-1 flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1 h-1 rounded-full bg-primary/70" aria-hidden="true" />
+                    <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-foreground/65">
+                      {t.syncSectionLabel}
+                    </span>
+                    {/* Otherwise an applied offset becomes invisible state */}
+                    {syncOffsetSec !== 0 && (
+                      <span className="ml-auto font-mono text-[11px] tabular-nums text-primary/85">
+                        {syncOffsetSec > 0 ? '+' : ''}{syncOffsetSec}{t.secUnit}
+                      </span>
+                    )}
+                  </div>
+
                   <button
                     type="button"
-                    aria-expanded={showAdvanced}
-                    onClick={() => setShowAdvanced((v) => !v)}
-                    className={cn(
-                      'w-full flex items-center justify-between gap-2 h-9 px-3 border transition-all duration-150',
-                      'font-mono text-[10px] tracking-[0.2em] uppercase',
-                      showAdvanced
-                        ? 'border-primary/45 bg-primary/[0.07] text-foreground/85'
-                        : 'border-border/55 bg-card/40 text-muted-foreground/75 hover:border-primary/45 hover:text-foreground/85 hover:bg-card/60',
-                    )}
+                    disabled={!file}
+                    onClick={() => setShowSyncMarker(true)}
+                    className="w-full flex items-center justify-center gap-2 h-9 px-3 border border-border/55 bg-card/40
+                               font-mono text-[10px] tracking-[0.2em] uppercase text-muted-foreground/80
+                               hover:border-primary/45 hover:bg-primary/[0.07] hover:text-foreground/85
+                               disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border/55
+                               disabled:hover:bg-card/40 disabled:hover:text-muted-foreground/80
+                               transition-all duration-150"
                   >
-                    <span className="flex items-center gap-2">
-                      <span className={showAdvanced ? 'text-primary' : 'text-muted-foreground/70'}><SlidersIcon size={13} /></span>
-                      {t.advancedLabel}
-                    </span>
-                    <ChevronIcon size={12} className={cn('transition-transform duration-200', showAdvanced && 'rotate-180')} />
+                    <SlidersIcon size={13} />
+                    {t.syncMarkerOpen}
                   </button>
 
-                  {showAdvanced && (
-                    <div className="flex flex-col gap-1.5 pt-3 animate-fade-up">
-                      <span className="font-mono text-[10px] tracking-wide uppercase text-muted-foreground/65">
-                        {t.syncOffsetLabel}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-stretch h-8 border border-border/60 bg-background/60">
-                          <button
-                            type="button"
-                            aria-label={t.syncDecrease}
-                            onClick={() => setSyncOffsetSec(clampStep(syncOffsetSec - 0.1))}
-                            className="w-7 flex items-center justify-center text-base leading-none
-                                       text-muted-foreground/70 hover:text-primary hover:bg-primary/10
-                                       active:bg-primary/20 transition-colors"
-                          >−</button>
-                          <input
-                            id="sync-offset"
-                            type="number"
-                            step="0.1"
-                            min="-60"
-                            max="60"
-                            value={syncOffsetSec}
-                            onChange={(e) => setSyncOffsetSec(parseFloat(e.target.value) || 0)}
-                            className="w-12 bg-transparent text-center font-mono text-[13px] tabular-nums
-                                       text-foreground/85 border-x border-border/60 focus:outline-none
-                                       focus:bg-primary/[0.06] transition-colors
-                                       [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none
-                                       [&::-webkit-outer-spin-button]:appearance-none"
-                          />
-                          <button
-                            type="button"
-                            aria-label={t.syncIncrease}
-                            onClick={() => setSyncOffsetSec(clampStep(syncOffsetSec + 0.1))}
-                            className="w-7 flex items-center justify-center text-base leading-none
-                                       text-muted-foreground/70 hover:text-primary hover:bg-primary/10
-                                       active:bg-primary/20 transition-colors"
-                          >+</button>
-                        </div>
-                        <span className="font-mono text-[10px] text-muted-foreground/55">{t.secUnit}</span>
-                      </div>
-                      <p className="font-mono text-[9px] text-muted-foreground/45 tracking-wide">
-                        {t.syncOffsetHint}
-                      </p>
-                    </div>
-                  )}
+                  <p className="font-mono text-[9px] text-muted-foreground/45 tracking-wide">
+                    {t.syncOffsetHint}
+                  </p>
                 </div>
 
               </div>
@@ -468,6 +436,16 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
           </span>
         )}
       </button>
+
+      {showSyncMarker && file && webcamFile && (
+        <SyncMarker
+          videoPath={file}
+          webcamPath={webcamFile}
+          initialOffset={syncOffsetSec}
+          onApply={setSyncOffsetSec}
+          onClose={() => setShowSyncMarker(false)}
+        />
+      )}
 
     </section>
   )

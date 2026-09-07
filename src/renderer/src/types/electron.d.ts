@@ -60,6 +60,16 @@ export interface ElectronFile extends File {
   path: string
 }
 
+/** Scrubbing proxies for the sync marker, as raw MP4 bytes for the renderer to
+ *  wrap in blob URLs. Proxy time == source time, so a timestamp read off one of
+ *  these is directly usable as an offset. */
+export interface SyncProxies {
+  video: ArrayBuffer
+  webcam: ArrayBuffer
+  /** How many seconds of each source the proxies cover. */
+  seconds: number
+}
+
 export interface ElectronAPI {
   // Video pipeline
   selectVideo: () => Promise<string | null>
@@ -68,6 +78,7 @@ export interface ElectronAPI {
   render: (opts: RenderOptions) => Promise<RenderResult>
   openFolder: (path: string) => Promise<void>
   checkFFmpeg: () => Promise<boolean>
+  prepareSync: (videoPath: string, webcamPath: string) => Promise<SyncProxies>
   onTranscribeProgress: (cb: (pct: number) => void) => void
   onClaudeProgress: (cb: (chunk: string) => void) => void
   onRenderProgress: (cb: (progress: RenderProgress) => void) => void

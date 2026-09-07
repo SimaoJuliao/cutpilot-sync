@@ -4,6 +4,7 @@ import { autoUpdater } from 'electron-updater'
 import { strings } from './i18n'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
+import { readFile } from 'fs/promises'
 import type { BuildPromptOptions, RenderOptions } from '../renderer/src/types/electron'
 
 import { transcribeVideo } from './pipeline/transcribe'
@@ -12,6 +13,7 @@ import { buildPrompt } from './pipeline/buildPrompt'
 import { callClaude } from './pipeline/callClaude'
 import { refineEdl } from './pipeline/refineEdl'
 import { renderVideo } from './pipeline/render'
+import { makeSyncProxy, PROXY_SECONDS } from './pipeline/syncProxy'
 
 // ── Single instance + deep link setup ──────────────────────────────────────
 
@@ -233,6 +235,36 @@ ipcMain.handle('render', async (_event, { videoPath, edlJSON, outputDir, webcamP
 })
 
 ipcMain.handle('open-folder', (_event, folderPath: string) => shell.openPath(folderPath))
+
+/** Build the scrubbing proxies for the sync marker and hand their BYTES to the
+ *  renderer, which wraps them in blob URLs.
+ *
+ *  A custom file:// -style protocol was tried first and is the wrong tool here:
+ *  a Windows path inside the URL (drive-letter colon, empty host) never reached
+ *  the handler, and serving media that way also means implementing Range
+ *  requests, because Chromium's demuxer drives <video> with them. Proxies are
+ *  only a few MB, so shipping the bytes once is simpler, has no URL-escaping or
+ *  path-traversal surface at all, and gives the player a fully seekable buffer. */
+ipcMain.handle('prepare-sync', async (_event, videoPath: string, webcamPath: string) => {
+  try {
+    const [videoProxy, webcamProxy] = await Promise.all([
+      makeSyncProxy(videoPath),
+      makeSyncProxy(webcamPath),
+    ])
+    const [video, webcam] = await Promise.all([readFile(videoProxy), readFile(webcamProxy)])
+    // Plain ArrayBuffers rather than Node Buffers. Both survive IPC and the
+    // contextBridge clone (measured), but the renderer only wraps these in a
+    // Blob, so handing it the buffer states the contract plainly.
+    return {
+      video: video.buffer.slice(video.byteOffset, video.byteOffset + video.byteLength),
+      webcam: webcam.buffer.slice(webcam.byteOffset, webcam.byteOffset + webcam.byteLength),
+      seconds: PROXY_SECONDS,
+    }
+  } catch (e) {
+    console.error('[prepare-sync] failed:', e)
+    throw e   // the renderer shows the message, so don't bury it here
+  }
+})
 
 ipcMain.handle('check-ffmpeg', async () => {
   const { execFileSync } = await import('child_process')
