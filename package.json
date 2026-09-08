@@ -12,6 +12,8 @@
     "build": "electron-vite build",
     "dist": "npm run build && electron-builder",
     "start": "electron-vite preview",
+    "transcript": "node scripts/show-transcript.mjs",
+    "edl:add": "node scripts/edl-regression.mjs add",
     "edl:save": "node scripts/edl-regression.mjs save",
     "edl:check": "node scripts/edl-regression.mjs check"
   },

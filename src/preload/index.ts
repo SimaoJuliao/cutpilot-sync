@@ -6,6 +6,7 @@ import type {
   RenderOptions,
   RenderResult,
   RenderProgress,
+  SyncProxies,
 } from '../renderer/src/types/electron'
 
 contextBridge.exposeInMainWorld('api', {
@@ -16,6 +17,10 @@ contextBridge.exposeInMainWorld('api', {
   render: (opts: RenderOptions): Promise<RenderResult> => ipcRenderer.invoke('render', opts),
   openFolder: (path: string): Promise<void> => ipcRenderer.invoke('open-folder', path),
   checkFFmpeg: (): Promise<boolean> => ipcRenderer.invoke('check-ffmpeg'),
+
+  /** Build low-res scrubbing proxies of both videos for the sync marker. */
+  prepareSync: (videoPath: string, webcamPath: string): Promise<SyncProxies> =>
+    ipcRenderer.invoke('prepare-sync', videoPath, webcamPath),
 
   onTranscribeProgress: (cb: (pct: number) => void) =>
     ipcRenderer.on('transcribe-progress', (_, v: number) => cb(v)),

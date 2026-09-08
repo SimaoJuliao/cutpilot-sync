@@ -7,31 +7,24 @@
  * Any change to the file (size or modification date) busts the cache
  * automatically, so stale results are never returned.
  *
- * Storage: <userData>/cache/transcriptions/<key>.json
+ * Storage: <userData>/cps-cache/transcriptions/<key>.json — see diskCache.ts
+ * for why that root is not `<userData>/cache`.
  */
 
 import { createHash } from 'crypto'
-import {
-  statSync, existsSync, readFileSync,
-  writeFileSync, mkdirSync, readdirSync,
-  unlinkSync
-} from 'fs'
+import { statSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { app } from 'electron'
 import type { Transcript } from '../../../src/renderer/src/types/electron'
+import { getCacheDir, evictOldest } from './diskCache'
 
 const MAX_ENTRIES = 50   // keep at most 50 cached transcriptions
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000  // 30 days
 
-const getCacheDir = (): string => {
-  const dir = join(app.getPath('userData'), 'cache', 'transcriptions')
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  return dir
-}
+const cacheDir = () => getCacheDir('transcriptions')
 
 // Bump when the Deepgram request parameters change, so existing cache entries
 // (transcribed with the old params) are invalidated automatically.
-const PARAMS_VERSION = 'detect-gapfill-v7'
+const PARAMS_VERSION = 'detect-gapfill-keyterm-v8'
 
 const getCacheKey = (videoPath: string): string => {
   const stat = statSync(videoPath)
@@ -44,7 +37,7 @@ const getCacheKey = (videoPath: string): string => {
 export const getCachedTranscription = (videoPath: string): Transcript | null => {
   try {
     const key = getCacheKey(videoPath)
-    const cachePath = join(getCacheDir(), `${key}.json`)
+    const cachePath = join(cacheDir(), `${key}.json`)
     if (!existsSync(cachePath)) return null
 
     const entry = JSON.parse(readFileSync(cachePath, 'utf-8')) as {
@@ -67,35 +60,16 @@ export const getCachedTranscription = (videoPath: string): Transcript | null => 
 
 export const cacheTranscription = (videoPath: string, transcript: Transcript): void => {
   try {
-    const dir = getCacheDir()
+    const dir = cacheDir()
     const key = getCacheKey(videoPath)
     const cachePath = join(dir, `${key}.json`)
 
     writeFileSync(cachePath, JSON.stringify({ savedAt: Date.now(), transcript }), 'utf-8')
     console.log('[transcription-cache] saved —', key)
 
-    // Evict oldest entries if over the limit
-    evictOldest(dir)
+    evictOldest(dir, MAX_ENTRIES, f => f.endsWith('.json'))
   } catch (e) {
+    // Non-fatal — the transcription still worked, it just won't be cached
     console.warn('[transcription-cache] write failed:', e)
-    // Non-fatal — the transcription still worked, just won't be cached
   }
-}
-
-const evictOldest = (dir: string): void => {
-  try {
-    const files = readdirSync(dir)
-      .filter((f) => f.endsWith('.json'))
-      .map((f) => {
-        const p = join(dir, f)
-        return { path: p, mtime: statSync(p).mtimeMs }
-      })
-      .sort((a, b) => a.mtime - b.mtime)  // oldest first
-
-    if (files.length > MAX_ENTRIES) {
-      files.slice(0, files.length - MAX_ENTRIES).forEach(({ path }) => {
-        try { unlinkSync(path) } catch { /* skip */ }
-      })
-    }
-  } catch { /* skip */ }
 }

@@ -26,7 +26,18 @@ import { detectKeepClips } from './directorCues'
 
 const MIN_KEEP = 0.15      // drop fragments shorter than this after surgery (s)
 const MAX_SILENCE = 2.0    // gaps longer than this are dead air → split/trim (s)
-const PAD = 0.12           // natural breath kept around each speech run (s)
+
+// Padding around each kept speech run. The tail is the larger of the two because
+// the ASR's end timestamps are estimates, not forced alignment — it commonly ends
+// a word before the audio does (whole runs come back quantised to 0.08s steps with
+// no gaps between words), so a cut placed exactly on `word.end` clips the last
+// syllable. Padding is measured out from the WORDS, never capped by the incoming
+// range: ranges arrive snapped to phrase edges, i.e. ending exactly on the last
+// word, so a range-capped pad silently collapsed to zero.
+const LEAD_PAD = 0.15      // breath before the first word (s)
+const TAIL_PAD = 0.40      // room after the last word (s)
+const GAP_SHARE = 0.5      // never take more than half the silence to the neighbour,
+                           //   so padding can never reach adjacent (possibly cut) speech
 const MAX_WORD_SPAN = 4.0     // a word longer than this MIGHT be an inflated timestamp…
 const GARBAGE_DOMINANCE = 0.6 // …but only treat the phrase as garbage if that one word
                               //   also covers >60% of it (a lone 10s "Teste."). A long
@@ -72,24 +83,38 @@ const mergeOverlapping = (ranges: EdlRange[]): EdlRange[] => {
  *   - internal gaps longer than MAX_SILENCE split the range into speech runs;
  *   - each run is tightened to [firstWord − PAD, lastWord + PAD].
  */
+/**
+ * How much of an adjacent silence to take as padding: at most `max`, and never
+ * more than half the gap, so the padding of two neighbouring runs can meet but
+ * never overlap — and can never reach a word that was deliberately cut.
+ * `Infinity` (no neighbouring word) simply yields the full `max`.
+ */
+const padInto = (gap: number, max: number): number => Math.max(0, Math.min(max, gap * GAP_SHARE))
+
 const clampToSpeech = (ranges: EdlRange[], transcript: Transcript): EdlRange[] => {
   const words = transcript.words.filter(w => w.type === 'word').sort((a, b) => a.start - b.start)
   const out: EdlRange[] = []
 
   for (const r of ranges) {
-    const inside = words.filter(w => w.end > r.start && w.start < r.end)
+    // Carry each word's index along, so the neighbours just outside a run are a
+    // lookup away without a second pass over the transcript.
+    const inside = words
+      .map((w, i) => ({ w, i }))
+      .filter(({ w }) => w.end > r.start && w.start < r.end)
     if (inside.length === 0) continue // pure silence → drop
 
     let runStart = 0
     for (let i = 1; i <= inside.length; i++) {
-      const gap = i < inside.length ? inside[i].start - inside[i - 1].end : Infinity
+      const gap = i < inside.length ? inside[i].w.start - inside[i - 1].w.end : Infinity
       if (gap > MAX_SILENCE) {
         const first = inside[runStart]
         const last = inside[i - 1]
+        const prev = words[first.i - 1]
+        const next = words[last.i + 1]
         out.push({
           ...r,
-          start: Math.max(r.start, first.start - PAD),
-          end: Math.min(r.end, last.end + PAD),
+          start: Math.max(0, first.w.start - padInto(prev ? first.w.start - prev.end : Infinity, LEAD_PAD)),
+          end: last.w.end + padInto(next ? next.start - last.w.end : Infinity, TAIL_PAD),
         })
         runStart = i
       }
@@ -164,9 +189,10 @@ const trimDanglingTails = (ranges: EdlRange[], transcript: Transcript): EdlRange
     let last = inside.length - 1
     while (last >= 0 && TRAILING_FUNCTION.has(stripPunct(inside[last].text))) last--
     if (last < 0 || last === inside.length - 1) return r // all-function (leave) or nothing to trim
-    // Cap the end at the trimmed word's start so PAD can't re-include it (the
-    // dangling word usually follows the content word with no silence between).
-    return { ...r, end: Math.min(r.end, inside[last].end + PAD, inside[last + 1].start) }
+    // Pad past the content word, but never as far as the trimmed word (which
+    // usually follows with no silence between them).
+    const tail = padInto(inside[last + 1].start - inside[last].end, TAIL_PAD)
+    return { ...r, end: Math.min(r.end, inside[last].end + tail) }
   })
 }
 

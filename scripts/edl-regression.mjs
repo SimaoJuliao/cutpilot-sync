@@ -2,54 +2,113 @@
  * edl-regression.mjs
  * Regression harness for the deterministic EDL layer (refineEdl + retake detection).
  *
- * Runs the EDL-stage pipeline over every cached transcript with a keep-everything
+ * Runs the EDL-stage pipeline over every corpus transcript with a keep-everything
  * EDL (so ALL retake chains are active) and snapshots what the deterministic layer
  * decides to keep: retake chains, keepers, and the final kept text per range.
  *
- *   npm run edl:save    — snapshot current behaviour as the baseline
- *   npm run edl:check   — re-run and diff against the baseline (exit 1 on any change)
+ *   npm run edl:add -- --as=144   — copy the newest app-cache transcript into the corpus
+ *   npm run edl:save              — snapshot current behaviour as the baseline
+ *   npm run edl:check             — re-run and diff the baseline (exit 1 on any change)
  *
  * Workflow: `edl:save` BEFORE touching detection code, `edl:check` after — any
  * changed line shows exactly which video/sentence gained or lost content. This
  * protects the golden rule: a fix for one video must never lose good content in
  * another.
  *
- * Baselines live in .edl-baselines/ (gitignored — transcripts are private content;
- * they must never land in the public repo). Uses the app's transcription cache, so
- * it covers every video transcribed in the last 30 days.
+ * The corpus (.edl-corpus/) is the reason this is trustworthy. The app's own
+ * transcription cache re-keys entries whenever a video is re-transcribed or the
+ * params version is bumped, so a harness reading it silently loses coverage — it
+ * once dropped from 6 videos to 1 between runs, and baselines for the missing
+ * ones went with them. `edl:add` copies transcripts into the corpus, where they
+ * stay until deliberately deleted.
+ *
+ * Corpus and baselines are gitignored: transcripts are private content and must
+ * never land in the public repo.
  */
 
 import { build } from 'esbuild'
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, existsSync, mkdtempSync } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
-import { tmpdir, homedir } from 'node:os'
-import { pathToFileURL, fileURLToPath } from 'node:url'
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const BASELINE_DIR = join(ROOT, '.edl-baselines')
+import { createHash } from 'node:crypto'
+import { join, resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
+import { ROOT, BASELINE_DIR, CORPUS_DIR, defaultCacheDir, jsonFilesByNewest } from './lib/paths.mjs'
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2)
 const mode = args.find(a => !a.startsWith('--'))
 const cacheDirArg = args.find(a => a.startsWith('--cache-dir='))?.slice('--cache-dir='.length)
+const asArg = args.find(a => a.startsWith('--as='))?.slice('--as='.length)
 
-if (mode !== 'save' && mode !== 'check') {
-  console.log('Usage: node scripts/edl-regression.mjs <save|check> [--cache-dir=path]')
+if (!['add', 'save', 'check'].includes(mode)) {
+  console.log('Usage: node scripts/edl-regression.mjs <add|save|check> [--as=label] [--cache-dir=path]')
+  console.log('  add    copy transcripts from the app cache into .edl-corpus/')
+  console.log('         --as=<label> takes the NEWEST cache entry and names it <label>')
+  console.log('         (no --as imports every cache entry not already in the corpus)')
+  console.log('  save   snapshot the corpus as the baseline')
+  console.log('  check  re-run the corpus and diff against the baseline')
   process.exit(2)
 }
 
-// Same location as transcriptionCache.ts (app.getPath('userData')/cache/transcriptions)
-const defaultCacheDir = () => {
-  if (process.platform === 'win32') return join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'CutPilotSync', 'cache', 'transcriptions')
-  if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'CutPilotSync', 'cache', 'transcriptions')
-  return join(homedir(), '.config', 'CutPilotSync', 'cache', 'transcriptions')
+if (asArg && !/^[\w.-]+$/.test(asArg)) {
+  console.error(`[edl-regress] invalid --as label: ${asArg} (letters, digits, . _ - only)`)
+  process.exit(2)
 }
+
 const CACHE_DIR = cacheDirArg ? resolve(cacheDirArg) : defaultCacheDir()
 
-if (!existsSync(CACHE_DIR)) {
-  console.error(`[edl-regress] transcription cache not found: ${CACHE_DIR}`)
-  console.error('[edl-regress] transcribe at least one video in the app first, or pass --cache-dir=')
+// ── add: import from the app cache into the corpus ────────────────────────────
+
+const transcriptHash = (raw) => createHash('sha256').update(JSON.stringify(JSON.parse(raw).transcript)).digest('hex').slice(0, 16)
+
+const previewOf = (raw) => {
+  const words = JSON.parse(raw).transcript.words.filter(w => w.type === 'word')
+  return words.slice(0, 9).map(w => w.text).join(' ')
+}
+
+if (mode === 'add') {
+  if (!existsSync(CACHE_DIR)) {
+    console.error(`[edl-regress] transcription cache not found: ${CACHE_DIR}`)
+    console.error('[edl-regress] transcribe a video in the app first, or pass --cache-dir=')
+    process.exit(2)
+  }
+  mkdirSync(CORPUS_DIR, { recursive: true })
+
+  const cacheFiles = jsonFilesByNewest(CACHE_DIR)
+
+  if (cacheFiles.length === 0) {
+    console.error('[edl-regress] the app cache is empty — transcribe a video first')
+    process.exit(2)
+  }
+
+  // Content hashes already in the corpus, so re-adding the same transcript is a no-op.
+  const have = new Set(readdirSync(CORPUS_DIR).filter(f => f.endsWith('.json'))
+    .map(f => transcriptHash(readFileSync(join(CORPUS_DIR, f), 'utf-8'))))
+
+  const picked = asArg ? [cacheFiles[0]] : cacheFiles
+  let added = 0
+  for (const { file, path } of picked) {
+    const raw = readFileSync(path, 'utf-8')
+    const hash = transcriptHash(raw)
+    if (have.has(hash)) { console.log(`  SKIP   ${file}  (já no corpus)`); continue }
+    const name = asArg ?? file.slice(0, -5)
+    writeFileSync(join(CORPUS_DIR, `${name}.json`), raw, 'utf-8')
+    have.add(hash)
+    added++
+    console.log(`  ADDED  ${name}  "${previewOf(raw)}"`)
+  }
+  const total = readdirSync(CORPUS_DIR).filter(f => f.endsWith('.json')).length
+  console.log(`\n[edl-regress] ${added} adicionado(s) — corpus tem agora ${total} transcript(s) em ${CORPUS_DIR}`)
+  console.log('[edl-regress] corre `npm run edl:save` para gravar a baseline')
+  process.exit(0)
+}
+
+// ── save / check read the corpus, never the volatile app cache ────────────────
+
+if (!existsSync(CORPUS_DIR) || readdirSync(CORPUS_DIR).filter(f => f.endsWith('.json')).length === 0) {
+  console.error(`[edl-regress] corpus vazio: ${CORPUS_DIR}`)
+  console.error('[edl-regress] corre `npm run edl:add` para importar transcripts da cache da app')
   process.exit(2)
 }
 
@@ -144,17 +203,17 @@ const diffLines = (a, b) => {
 
 const pipeline = await loadPipeline()
 
-const cacheKeys = readdirSync(CACHE_DIR).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).sort()
-console.log(`[edl-regress] cache: ${CACHE_DIR} (${cacheKeys.length} transcripts)`)
+const corpusKeys = readdirSync(CORPUS_DIR).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).sort()
+console.log(`[edl-regress] corpus: ${CORPUS_DIR} (${corpusKeys.length} transcripts)`)
 console.log(`[edl-regress] baselines: ${BASELINE_DIR}\n`)
 
 mkdirSync(BASELINE_DIR, { recursive: true })
 const baselineKeys = readdirSync(BASELINE_DIR).filter(f => f.endsWith('.txt')).map(f => f.slice(0, -4))
 
 const snapshots = new Map()
-for (const key of cacheKeys) {
+for (const key of corpusKeys) {
   try {
-    const { transcript } = JSON.parse(readFileSync(join(CACHE_DIR, `${key}.json`), 'utf-8'))
+    const { transcript } = JSON.parse(readFileSync(join(CORPUS_DIR, `${key}.json`), 'utf-8'))
     const snap = snapshot(pipeline, transcript)
     if (snap) snapshots.set(key, snap)
     else console.log(`  EMPTY    ${key}  (transcript sem palavras — ignorado)`)
@@ -168,11 +227,11 @@ if (mode === 'save') {
     writeFileSync(join(BASELINE_DIR, `${key}.txt`), snap, 'utf-8')
     console.log(`  SAVED    ${key}  ${snap.match(/preview: "([^"]*)"/)?.[1] ?? ''}`)
   }
-  // Drop baselines whose cache entry is gone (evicted/re-transcribed) — save
-  // means "sync baselines to the current cache state".
+  // Drop baselines for transcripts deliberately removed from the corpus — save
+  // means "sync baselines to the current corpus".
   for (const key of baselineKeys.filter(k => !snapshots.has(k))) {
     unlinkSync(join(BASELINE_DIR, `${key}.txt`))
-    console.log(`  REMOVED  ${key}  (transcript já não está em cache)`)
+    console.log(`  REMOVED  ${key}  (já não está no corpus)`)
   }
   console.log(`\n[edl-regress] ${snapshots.size} baselines saved`)
 } else {
@@ -190,7 +249,7 @@ if (mode === 'save') {
     }
   }
   for (const key of baselineKeys.filter(k => !snapshots.has(k)))
-    console.log(`  STALE    ${key}  (baseline sem transcript em cache — ignorado)`)
+    console.log(`  STALE    ${key}  (baseline sem transcript no corpus — ignorado)`)
 
   console.log(`\n[edl-regress] ${ok} OK, ${changed} CHANGED, ${fresh} NEW`)
   if (changed > 0) {

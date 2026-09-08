@@ -72,9 +72,12 @@ Lines marked ←RETAKE are repeat attempts: the speaker started the same sentenc
 
 ━━━ CUT CRAFT RULES ━━━
 
-WARM-UP & SETUP (cut aggressively)
-- The first 10–60s are almost always setup noise: test counts, "espera lá", audio checks. Cut everything until the FIRST real content sentence.
+WARM-UP & SETUP (judge phrase by phrase — never sweep a time range)
+- Cut the phrases that are genuinely setup: mic/test counts ("teste, teste", "teste uns 3"), audio checks, "espera lá".
 - Phrases where the speaker addresses the editor/camera: "André, depois fazes o corte", "foca na minha cara", "passa esta parte quando eu", "esta parte era só a minha cara", "tenho que repetir aquela parte", "pera lá" (self-correction mid-setup) → CUT.
+- NEVER cut a run of phrases just because they come early, and never cut forward "until the first real sentence". Each opening phrase is decided on its own: a phrase that states a fact, figure or headline IS content even when it sits between two setup phrases, and even when it is the very first thing said.
+- Openings are often a montage of headline teasers (each a separate one-line topic, frequently closing with something like "temos isto e muito mais"). Those teasers are content — keep them all, not just the last one.
+- The ASR mangles proper nouns and figures, so a real sentence can read as nonsense (a company name transcribed as an unrelated everyday word, an index or amount rendered wrongly). If a phrase still asserts information — a value, a change, an event — it is content: KEEP it. Cut only phrases that carry no information at all.
 
 FALSE STARTS & RETAKE CHAINS
 - ←RETAKE lines are already detected for you. But there may be single-attempt false starts not caught by the detector: a phrase that ends with "épá!", "não", "espera", "enganei-me", "poxa", or cuts off mid-thought → CUT that phrase.
@@ -108,14 +111,10 @@ PADDING
 
 ━━━ OUTPUT FORMAT ━━━
 
-Output ONLY a raw JSON array — no markdown, no explanation, no code fences.
-Each item: {"start": 14.370, "end": 69.100, "label": "one short description"}
-- start/end must be exact decimal seconds from the timestamps below
-- List only ranges to KEEP (everything else is cut)
-- Last item: {"start": -1, "end": -1, "label": "total kept: Xs"}
+Respond with the kept ranges: {"ranges": [{"start": 14.370, "end": 69.100, "label": "one short description"}, ...]}
+- start/end must be exact decimal seconds copied from the timestamps below
+- List only ranges to KEEP (everything else is cut), in timeline order
 
 TRANSCRIPT:
-${transcriptBlock}
-
-JSON array now:`
+${transcriptBlock}`
 }
