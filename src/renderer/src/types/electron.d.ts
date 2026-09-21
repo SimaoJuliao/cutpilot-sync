@@ -20,10 +20,17 @@ export interface EdlRange {
   label?: string
 }
 
-export interface BuildPromptOptions {
+/** Longest silence the finished cut may keep, in seconds; 0 leaves every pause
+ *  as the speaker made it. See lib/pacing.ts for what each tier is worth. */
+export type MaxPauseSec = 0 | 0.25 | 0.15 | 0.1
+
+export interface PlanEdlOptions {
   transcript: Transcript
+  /** The source file, needed to read where its audio is actually quiet. */
+  videoPath: string
   videoName: string
   language: string
+  maxPauseSec: MaxPauseSec
 }
 
 export type PipPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -74,7 +81,7 @@ export interface ElectronAPI {
   // Video pipeline
   selectVideo: () => Promise<string | null>
   transcribe: (videoPath: string) => Promise<Transcript>
-  callClaude: (opts: BuildPromptOptions) => Promise<EdlRange[]>
+  callClaude: (opts: PlanEdlOptions) => Promise<EdlRange[]>
   render: (opts: RenderOptions) => Promise<RenderResult>
   openFolder: (path: string) => Promise<void>
   checkFFmpeg: () => Promise<boolean>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase } from '@lib'
-import type { RenderResult, PipPosition } from '@/types'
+import { supabase, DEFAULT_MAX_PAUSE_SEC } from '@lib'
+import type { RenderResult, PipPosition, MaxPauseSec } from '@/types'
 
 const ONBOARDED_KEY = 'cps_onboarded'
 
@@ -12,6 +12,8 @@ export interface ProcessParams {
   webcamPath?: string
   syncOffsetSec?: number
   pipPosition?: PipPosition
+  /** Always supplied by the upload step, which defaults it. */
+  maxPauseSec: MaxPauseSec
 }
 
 export interface AppState {
@@ -20,6 +22,7 @@ export interface AppState {
   webcamPath: string | null
   syncOffsetSec: number
   pipPosition: PipPosition | null
+  maxPauseSec: MaxPauseSec
   result: RenderResult | null
 }
 
@@ -36,6 +39,7 @@ export const useApp = (user: User | null): AppState & AppActions => {
   const [webcamPath, setWebcamPath] = useState<string | null>(null)
   const [syncOffsetSec, setSyncOffsetSec] = useState(0)
   const [pipPosition, setPipPosition] = useState<PipPosition | null>(null)
+  const [maxPauseSec, setMaxPauseSec] = useState(DEFAULT_MAX_PAUSE_SEC)
   const [result, setResult] = useState<RenderResult | null>(null)
 
   // Initialize step once the user is known.
@@ -59,11 +63,12 @@ export const useApp = (user: User | null): AppState & AppActions => {
       .catch(err => console.error('[useApp] failed to save onboarding state:', err))
   }, [])
 
-  const startProcessing = useCallback(({ videoPath: path, webcamPath: wc, syncOffsetSec: offset, pipPosition: pip }: ProcessParams) => {
+  const startProcessing = useCallback(({ videoPath: path, webcamPath: wc, syncOffsetSec: offset, pipPosition: pip, maxPauseSec: pause }: ProcessParams) => {
     setVideoPath(path)
     setWebcamPath(wc ?? null)
     setSyncOffsetSec(offset ?? 0)
     setPipPosition(pip ?? null)
+    setMaxPauseSec(pause)
     setStep('process')
   }, [])
 
@@ -77,9 +82,10 @@ export const useApp = (user: User | null): AppState & AppActions => {
     setWebcamPath(null)
     setSyncOffsetSec(0)
     setPipPosition(null)
+    setMaxPauseSec(DEFAULT_MAX_PAUSE_SEC)
     setResult(null)
     setStep('upload')
   }, [])
 
-  return { step, videoPath, webcamPath, syncOffsetSec, pipPosition, result, finishOnboarding, startProcessing, finishDone, reset }
+  return { step, videoPath, webcamPath, syncOffsetSec, pipPosition, maxPauseSec, result, finishOnboarding, startProcessing, finishDone, reset }
 }

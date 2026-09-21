@@ -61,6 +61,19 @@ export const pt = {
     webcamReadyLabel: 'Câmara pronta',
     syncSectionLabel: 'Sincronismo',
     syncOffsetHint: 'Só é preciso se as duas gravações não arrancaram ao mesmo tempo.',
+    // ── Ritmo: quanto silêncio o vídeo final pode manter ─────────────────
+    pacingLabel: 'Ritmo',
+    pacingHint: 'Quanto silêncio o vídeo final pode manter entre frases.',
+    pacingOffTitle: 'Original',
+    pacingOffDesc: 'mantém as pausas',
+    pacingRelaxedTitle: 'Ligeiro',
+    pacingTightTitle: 'Apertado',
+    pacingTightestTitle: 'Máximo',
+    pacingTightestDesc: 'quase sem pausas',
+    /** Sub-legenda dos níveis com valor — {s} = segundos, ex.: "0,15" */
+    pacingMaxDesc: 'máx. {s}s',
+    pacingSlowerNote: 'Quanto mais apertado, mais demora a exportar.',
+
     // Header above the two zones
     sectionTitle: 'Selecionar vídeos',
     // Drag-over state

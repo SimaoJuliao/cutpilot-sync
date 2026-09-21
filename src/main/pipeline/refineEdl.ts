@@ -24,7 +24,9 @@ import type { EdlRange, Transcript } from '../../../src/renderer/src/types/elect
 import { detectRetakeChainSpans, groupPhrases, type TimeInterval } from './retakeDetection'
 import { detectKeepClips } from './directorCues'
 
-const MIN_KEEP = 0.15      // drop fragments shorter than this after surgery (s)
+/** Drop fragments shorter than this after surgery (s). Shared with any other
+ *  pass that cuts this EDL, so "too short to keep" means one thing. */
+export const MIN_KEEP = 0.15
 const MAX_SILENCE = 2.0    // gaps longer than this are dead air → split/trim (s)
 
 // Padding around each kept speech run. The tail is the larger of the two because
@@ -51,7 +53,7 @@ const overlapsAny = (span: TimeInterval, ranges: EdlRange[]): boolean =>
   ranges.some(r => r.start < span.end && r.end > span.start)
 
 /** Remove every cut interval from the ranges, splitting ranges as needed. */
-const subtractIntervals = (ranges: EdlRange[], cuts: TimeInterval[]): EdlRange[] => {
+export const subtractIntervals = (ranges: EdlRange[], cuts: TimeInterval[]): EdlRange[] => {
   let result = ranges.map(r => ({ ...r }))
   for (const cut of cuts) {
     const next: EdlRange[] = []

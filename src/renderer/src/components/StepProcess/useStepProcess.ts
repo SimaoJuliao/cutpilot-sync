@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import type { RenderResult, PipPosition } from '@/types'
+import type { RenderResult, PipPosition, MaxPauseSec } from '@/types'
 import { dirname, basename } from '@lib'
 
 export type ProcessPhase = 'transcribe' | 'analyse' | 'export' | 'done' | 'error'
@@ -103,6 +103,18 @@ const toOverall = (phase: ProcessPhase, sub: number): number => {
   return 100
 }
 
+/** Everything the run needs. One object rather than six positional arguments:
+ *  four are optional and two are bare numbers, so position alone no longer says
+ *  which is which. Also the component's own props — it just forwards them. */
+export interface StepProcessParams {
+  videoPath: string
+  webcamPath?: string
+  syncOffsetSec?: number
+  pipPosition?: PipPosition
+  maxPauseSec: MaxPauseSec
+  onDone: (result: RenderResult) => void
+}
+
 export interface UseStepProcessReturn {
   pct: number
   msg: string
@@ -110,13 +122,9 @@ export interface UseStepProcessReturn {
   error: string | null
 }
 
-export const useStepProcess = (
-  videoPath: string,
-  onDone: (result: RenderResult) => void,
-  webcamPath?: string,
-  syncOffsetSec?: number,
-  pipPosition?: PipPosition,
-): UseStepProcessReturn => {
+export const useStepProcess = ({
+  videoPath, webcamPath, syncOffsetSec, pipPosition, maxPauseSec, onDone,
+}: StepProcessParams): UseStepProcessReturn => {
   const [phase, setPhase] = useState<ProcessPhase>('transcribe')
   const [pct, setPct] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -153,7 +161,7 @@ export const useStepProcess = (
       const language = transcript.language ?? 'pt'
 
       const edlRanges = await window.api
-        .callClaude({ transcript, videoName, language })
+        .callClaude({ transcript, videoPath, videoName, language, maxPauseSec })
         .finally(() => {
           clearInterval(ticker)
           window.api.removeAllListeners('claude-progress')

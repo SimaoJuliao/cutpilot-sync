@@ -1,7 +1,6 @@
-import type { RenderResult } from '@/types'
 import { strings } from '@i18n'
 import { useStepProcess } from './useStepProcess'
-import type { ProcessPhase } from './useStepProcess'
+import type { ProcessPhase, StepProcessParams } from './useStepProcess'
 
 const t = strings.stepProcess
 
@@ -133,16 +132,8 @@ const PhaseSteps = ({ phase, pct }: { phase: ProcessPhase; pct: number }) => (
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-interface StepProcessProps {
-  videoPath: string
-  webcamPath?: string
-  syncOffsetSec?: number
-  pipPosition?: import('@/types').PipPosition
-  onDone: (result: RenderResult) => void
-}
-
-export const StepProcess = ({ videoPath, webcamPath, syncOffsetSec, pipPosition, onDone }: StepProcessProps) => {
-  const { pct, msg, phase, error } = useStepProcess(videoPath, onDone, webcamPath, syncOffsetSec, pipPosition)
+export const StepProcess = (props: StepProcessParams) => {
+  const { pct, msg, phase, error } = useStepProcess(props)
 
   if (error) {
     return (

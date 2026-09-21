@@ -54,7 +54,7 @@ const App = () => {
     isResetting, finishReset, signOut,
   } = useAuth()
   const {
-    step, videoPath, webcamPath, syncOffsetSec, pipPosition, result,
+    step, videoPath, webcamPath, syncOffsetSec, pipPosition, maxPauseSec, result,
     finishOnboarding, startProcessing, finishDone, reset,
   } = useApp(user)
 
@@ -267,6 +267,7 @@ const App = () => {
             webcamPath={webcamPath ?? undefined}
             syncOffsetSec={syncOffsetSec}
             pipPosition={pipPosition ?? undefined}
+            maxPauseSec={maxPauseSec}
             onDone={finishDone}
           />
         )}
