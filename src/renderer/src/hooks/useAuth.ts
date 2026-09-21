@@ -34,10 +34,21 @@ export const parseAuthError = (err: unknown): string => {
 // indefinitely, so we cap it and fall through to an actionable error screen.
 const SESSION_TIMEOUT_MS = 10_000
 
+/**
+ * Why the session check failed, when it did.
+ *
+ * Worth separating: `navigator.onLine === false` is a reliable "this machine has
+ * no network", while everything else means we reached the network and the
+ * backend still did not answer — a dead or paused project looks exactly like
+ * this. Telling someone with working internet to check their internet sends
+ * them hunting for a problem they do not have.
+ */
+export type ConnectionFailure = 'offline' | 'unreachable'
+
 export interface UseAuthReturn {
   user: User | null
   loading: boolean
-  connectionError: boolean  // true when the session check failed/timed out
+  connectionError: ConnectionFailure | null  // set when the session check failed/timed out
   retryConnection: () => void
   isResetting: boolean    // true while showing "set new password" after deep link
   finishReset: () => void
@@ -52,7 +63,7 @@ export interface UseAuthReturn {
 export const useAuth = (): UseAuthReturn => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [connectionError, setConnectionError] = useState(false)
+  const [connectionError, setConnectionError] = useState<ConnectionFailure | null>(null)
   const [isResetting, setIsResetting] = useState(false)
 
   // useRef so setting the flag is synchronous and never affected by render cycles
@@ -66,34 +77,36 @@ export const useAuth = (): UseAuthReturn => {
    */
   const checkSession = useCallback(() => {
     setLoading(true)
-    setConnectionError(false)
+    setConnectionError(null)
 
     let settled = false
-    const settle = (sessionUser: User | null, failed: boolean) => {
+    const settle = (sessionUser: User | null, failure: ConnectionFailure | null) => {
       if (settled) return
       settled = true
       setUser(sessionUser)
-      setConnectionError(failed)
+      setConnectionError(failure)
       setLoading(false)
     }
+    // Read at failure time, not at mount: the network may have dropped since.
+    const failed = () => settle(null, navigator.onLine ? 'unreachable' : 'offline')
 
     const timeout = setTimeout(() => {
       console.error(`[auth] getSession did not resolve in ${SESSION_TIMEOUT_MS}ms — backend unreachable`)
-      settle(null, true)
+      failed()
     }, SESSION_TIMEOUT_MS)
 
     supabase.auth.getSession()
       .then(({ data, error }) => {
         if (error) {
           console.error('[auth] getSession error:', error)
-          settle(null, true)
+          failed()
           return
         }
-        settle(data.session?.user ?? null, false)
+        settle(data.session?.user ?? null, null)
       })
       .catch((err) => {
         console.error('[auth] getSession failed:', err)
-        settle(null, true)
+        failed()
       })
       .finally(() => clearTimeout(timeout))
 

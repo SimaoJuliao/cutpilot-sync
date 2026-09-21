@@ -5,13 +5,11 @@ import { strings } from './i18n'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 import { readFile } from 'fs/promises'
-import type { BuildPromptOptions, RenderOptions } from '../renderer/src/types/electron'
+import type { PlanEdlOptions, RenderOptions } from '../renderer/src/types/electron'
 
 import { transcribeVideo } from './pipeline/transcribe'
 import { getCachedTranscription, cacheTranscription } from './pipeline/transcriptionCache'
-import { buildPrompt } from './pipeline/buildPrompt'
-import { callClaude } from './pipeline/callClaude'
-import { refineEdl } from './pipeline/refineEdl'
+import { planEdl } from './pipeline/planEdl'
 import { renderVideo } from './pipeline/render'
 import { makeSyncProxy, PROXY_SECONDS } from './pipeline/syncProxy'
 
@@ -211,17 +209,13 @@ ipcMain.handle('transcribe', async (_event, videoPath: string) => {
   } catch (err) { console.error('[transcribe]', err); throw err }
 })
 
-ipcMain.handle('call-claude', async (_event, { transcript, videoName, language }: BuildPromptOptions) => {
+ipcMain.handle('call-claude', async (_event, opts: PlanEdlOptions) => {
   const apiKey = __ANTHROPIC_API_KEY__
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY não configurada — verifica o .env e reinicia')
-  const prompt = buildPrompt(transcript, videoName, language)
   try {
-    const ranges = await callClaude(prompt, apiKey, (chunk) => {
+    return await planEdl(opts, apiKey, (chunk) => {
       BrowserWindow.getAllWindows()[0]?.webContents.send('claude-progress', chunk)
     })
-    // Deterministic enforcement: force-remove retake spans + trim dead air,
-    // independent of whether Claude honoured the ←RETAKE hints.
-    return refineEdl(ranges, transcript)
   } catch (err) { console.error('[call-claude]', err); throw err }
 })
 

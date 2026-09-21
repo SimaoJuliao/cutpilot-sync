@@ -31,3 +31,25 @@ export const runPool = async <T>(
   await Promise.all(runners)
   if (failure) throw failure
 }
+
+/** Work already running, keyed by whatever identifies the result. */
+const inFlight = new Map<string, Promise<unknown>>()
+
+/**
+ * Run `fn` once per `key`, sharing the result with every caller that asks while
+ * it is still running.
+ *
+ * Needed wherever an expensive job writes to a fixed destination: React
+ * StrictMode fires effects twice in development, and a user can trigger the same
+ * job twice by clicking quickly, so without this two ffmpeg processes end up
+ * writing one file. The entry is dropped when the promise settles, so a failure
+ * is not cached — the next caller retries.
+ */
+export const singleFlight = <T>(key: string, fn: () => Promise<T>): Promise<T> => {
+  const running = inFlight.get(key) as Promise<T> | undefined
+  if (running) return running
+
+  const task = fn()
+  inFlight.set(key, task)
+  return task.finally(() => inFlight.delete(key))
+}

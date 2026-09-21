@@ -5,8 +5,12 @@ export const pt = {
     accountBtnLabel: 'Definições da conta',
     closeLabel: 'Fechar definições',
     loadingLabel: 'A carregar',
+    // Two different failures that used to share one message. Blaming the user's
+    // internet when the internet is fine sends them hunting for the wrong thing.
     offlineTitle: 'SEM LIGAÇÃO.',
-    offlineDesc: 'Não foi possível contactar o servidor de autenticação. Verifica a tua ligação à internet e tenta novamente.',
+    offlineDesc: 'Estás sem internet. Verifica a tua rede e tenta novamente.',
+    unreachableTitle: 'SERVIDOR INDISPONÍVEL.',
+    unreachableDesc: 'A tua ligação está boa, mas o servidor de autenticação não respondeu. Pode estar em baixo — tenta novamente daqui a pouco.',
     offlineRetryBtn: 'Tentar novamente',
   },
 
@@ -61,6 +65,19 @@ export const pt = {
     webcamReadyLabel: 'Câmara pronta',
     syncSectionLabel: 'Sincronismo',
     syncOffsetHint: 'Só é preciso se as duas gravações não arrancaram ao mesmo tempo.',
+    // ── Ritmo: quanto silêncio o vídeo final pode manter ─────────────────
+    pacingLabel: 'Ritmo',
+    pacingHint: 'Quanto silêncio o vídeo final pode manter entre frases.',
+    pacingOffTitle: 'Original',
+    pacingOffDesc: 'mantém as pausas',
+    pacingRelaxedTitle: 'Ligeiro',
+    pacingTightTitle: 'Apertado',
+    pacingTightestTitle: 'Máximo',
+    pacingTightestDesc: 'quase sem pausas',
+    /** Sub-legenda dos níveis com valor — {s} = segundos, ex.: "0,15" */
+    pacingMaxDesc: 'máx. {s}s',
+    pacingSlowerNote: 'Quanto mais apertado, mais demora a exportar.',
+
     // Header above the two zones
     sectionTitle: 'Selecionar vídeos',
     // Drag-over state

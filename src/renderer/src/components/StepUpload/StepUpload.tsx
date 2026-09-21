@@ -1,11 +1,53 @@
 import { useState } from 'react'
-import { cn } from '@lib'
+import { cn, PACING_TIERS } from '@lib'
 import { strings } from '@i18n'
 import { useStepUpload } from './useStepUpload'
 import { SyncMarker } from './SyncMarker'
 import { ScreenIcon, CamIcon, CheckIcon, PlusIcon, TwoFilesIcon, PipModeIcon, SlidersIcon } from '@assets/icons'
 
 const t = strings.stepUpload
+
+// ── Shared bits ───────────────────────────────────────────────────────────────
+
+/** Dot + caps caption that opens each section of this screen. */
+const SectionLabel = ({ children, trailing }: {
+  children: React.ReactNode
+  trailing?: React.ReactNode
+}) => (
+  <div className="flex items-center gap-2">
+    <span className="w-1 h-1 rounded-full bg-primary/70" aria-hidden="true" />
+    <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-foreground/65">
+      {children}
+    </span>
+    {trailing}
+  </div>
+)
+
+/** One option in a pick-exactly-one row: title over a smaller sub-label. */
+const ChoiceTile = ({ active, title, desc, icon, onClick }: {
+  active: boolean
+  title: string
+  desc: string
+  icon?: React.ReactNode
+  onClick: () => void
+}) => (
+  <button
+    type="button"
+    aria-pressed={active}
+    onClick={onClick}
+    className={cn(
+      'flex flex-col items-center gap-1.5 px-2 border text-center transition-all duration-150',
+      icon ? 'py-3.5' : 'py-2.5',
+      active
+        ? 'border-primary/70 bg-primary/[0.08] text-foreground shadow-[0_0_14px_hsl(var(--primary)/0.12)]'
+        : 'border-border/50 bg-card/30 text-muted-foreground/65 hover:border-border/80 hover:text-foreground/80',
+    )}
+  >
+    {icon && <span className={active ? 'text-primary' : ''}>{icon}</span>}
+    <span className="font-mono text-[11px] tracking-wide leading-tight">{title}</span>
+    <span className="font-mono text-[9px] text-muted-foreground/55 leading-tight">{desc}</span>
+  </button>
+)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -14,6 +56,7 @@ export interface UploadResult {
   webcamPath?: string
   syncOffsetSec?: number
   pipPosition?: import('@/types').PipPosition
+  maxPauseSec: import('@/types').MaxPauseSec
 }
 
 interface StepUploadProps {
@@ -30,6 +73,7 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
     handleWebcamPick, handleWebcamDragOver, handleWebcamDragLeave,
     handleWebcamDrop, handleWebcamRemove, setSyncOffsetSec,
     pipPosition, setPipPosition,
+    maxPauseSec, setMaxPauseSec,
     ffmpegOk,
   } = useStepUpload()
 
@@ -64,6 +108,7 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
       webcamPath: webcamFile ?? undefined,
       syncOffsetSec,
       pipPosition: (webcamFile && pipPosition) ? pipPosition : undefined,
+      maxPauseSec,
     })
   }
 
@@ -235,40 +280,16 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
               {/* Result-mode chooser → reveals corner picker → advanced (sync) */}
               <div className="flex-1 flex flex-col gap-3.5 px-4 py-4">
 
-                {/* Section label */}
-                <div className="flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-primary/70" aria-hidden="true" />
-                  <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-foreground/65">
-                    {t.resultLabel}
-                  </span>
-                </div>
+                <SectionLabel>{t.resultLabel}</SectionLabel>
 
                 {/* Explicit choice: two clear output modes */}
                 <div className="grid grid-cols-2 gap-2.5" role="group" aria-label={t.resultLabel}>
                   {([
                     { key: 'separate', icon: <TwoFilesIcon />, title: t.modeSeparateTitle, desc: t.modeSeparateDesc, onClick: () => setPipPosition(null) },
                     { key: 'pip', icon: <PipModeIcon />, title: t.modeOverlayTitle, desc: t.modeOverlayDesc, onClick: () => { if (!pipPosition) setPipPosition('bottom-right') } },
-                  ] as const).map((opt) => {
-                    const active = mode === opt.key
-                    return (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        aria-pressed={active}
-                        onClick={opt.onClick}
-                        className={cn(
-                          'flex flex-col items-center gap-1.5 px-2 py-3.5 border transition-all duration-150',
-                          active
-                            ? 'border-primary/70 bg-primary/[0.08] text-foreground shadow-[0_0_14px_hsl(var(--primary)/0.12)]'
-                            : 'border-border/50 bg-card/30 text-muted-foreground/65 hover:border-border/80 hover:text-foreground/80',
-                        )}
-                      >
-                        <span className={active ? 'text-primary' : ''}>{opt.icon}</span>
-                        <span className="font-mono text-[11px] tracking-wide text-center leading-tight">{opt.title}</span>
-                        <span className="font-mono text-[9px] text-muted-foreground/55 text-center leading-tight">{opt.desc}</span>
-                      </button>
-                    )
-                  })}
+                  ] as const).map(({ key, ...opt }) => (
+                    <ChoiceTile key={key} {...opt} active={mode === key} />
+                  ))}
                 </div>
 
                 {/* Corner picker — only when overlay is chosen */}
@@ -335,18 +356,16 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
                     single button, and hiding one button behind a disclosure only
                     costs a click and makes the feature harder to find. */}
                 <div className="mt-auto pt-1 flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-primary/70" aria-hidden="true" />
-                    <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-foreground/65">
-                      {t.syncSectionLabel}
-                    </span>
-                    {/* Otherwise an applied offset becomes invisible state */}
-                    {syncOffsetSec !== 0 && (
+                  <SectionLabel
+                    /* Otherwise an applied offset becomes invisible state */
+                    trailing={syncOffsetSec !== 0 && (
                       <span className="ml-auto font-mono text-[11px] tabular-nums text-primary/85">
                         {syncOffsetSec > 0 ? '+' : ''}{syncOffsetSec}{t.secUnit}
                       </span>
                     )}
-                  </div>
+                  >
+                    {t.syncSectionLabel}
+                  </SectionLabel>
 
                   <button
                     type="button"
@@ -413,6 +432,38 @@ export const StepUpload = ({ onNext }: StepUploadProps) => {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ── Pacing — applies to every video, with or without a camera ─────── */}
+      <div className="flex flex-col gap-2">
+        <SectionLabel
+          trailing={
+            <>
+              <span className="font-mono text-[9px] text-muted-foreground/50 tracking-wide">
+                {t.pacingHint}
+              </span>
+              {PACING_TIERS.find(o => o.sec === maxPauseSec)?.slower && (
+                <span className="ml-auto font-mono text-[9px] text-muted-foreground/45 tracking-wide">
+                  {t.pacingSlowerNote}
+                </span>
+              )}
+            </>
+          }
+        >
+          {t.pacingLabel}
+        </SectionLabel>
+
+        <div className="grid grid-cols-4 gap-2" role="group" aria-label={t.pacingLabel}>
+          {PACING_TIERS.map(({ sec, title, desc }) => (
+            <ChoiceTile
+              key={sec}
+              title={title}
+              desc={desc}
+              active={maxPauseSec === sec}
+              onClick={() => setMaxPauseSec(sec)}
+            />
+          ))}
         </div>
       </div>
 

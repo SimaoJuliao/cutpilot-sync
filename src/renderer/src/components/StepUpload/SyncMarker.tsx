@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { cn } from '@lib'
 import { strings } from '@i18n'
 import type { SyncProxies } from '@/types'
 import { CloseIcon } from '@assets/icons'

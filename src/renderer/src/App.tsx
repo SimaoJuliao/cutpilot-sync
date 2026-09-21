@@ -54,7 +54,7 @@ const App = () => {
     isResetting, finishReset, signOut,
   } = useAuth()
   const {
-    step, videoPath, webcamPath, syncOffsetSec, pipPosition, result,
+    step, videoPath, webcamPath, syncOffsetSec, pipPosition, maxPauseSec, result,
     finishOnboarding, startProcessing, finishDone, reset,
   } = useApp(user)
 
@@ -101,10 +101,10 @@ const App = () => {
             CUTPILOT
           </span>
           <h1 className="font-display text-[40px] leading-[0.9] text-foreground uppercase mb-4">
-            {strings.app.offlineTitle}
+            {connectionError === 'offline' ? strings.app.offlineTitle : strings.app.unreachableTitle}
           </h1>
           <p role="alert" className="font-mono text-[11px] leading-relaxed text-muted-foreground/70 mb-8">
-            {strings.app.offlineDesc}
+            {connectionError === 'offline' ? strings.app.offlineDesc : strings.app.unreachableDesc}
           </p>
           <button
             type="button"
@@ -267,6 +267,7 @@ const App = () => {
             webcamPath={webcamPath ?? undefined}
             syncOffsetSec={syncOffsetSec}
             pipPosition={pipPosition ?? undefined}
+            maxPauseSec={maxPauseSec}
             onDone={finishDone}
           />
         )}

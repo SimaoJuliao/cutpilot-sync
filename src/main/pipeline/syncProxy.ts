@@ -15,11 +15,11 @@
 
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { createHash, randomBytes } from 'crypto'
-import { existsSync, statSync, unlinkSync, renameSync } from 'fs'
+import { existsSync } from 'fs'
 import { join } from 'path'
 import { getFFmpegPath } from './ffmpeg'
-import { getCacheDir, evictOldest } from './diskCache'
+import { getCacheDir, evictOldest, cacheKey, writeAtomic } from './diskCache'
+import { singleFlight } from './concurrency'
 
 const execFileAsync = promisify(execFile)
 
@@ -40,59 +40,27 @@ const MAX_PROXIES = 8   // keep the cache small — these are disposable
 
 export const getProxyDir = (): string => getCacheDir('sync-proxies')
 
-const keyFor = (videoPath: string): string => {
-  const st = statSync(videoPath)
-  return createHash('sha256')
-    .update(`${videoPath}:${st.size}:${st.mtimeMs}:${PROXY_SECONDS}x${PROXY_HEIGHT}`)
-    .digest('hex')
-    .slice(0, 16)
-}
-
 // .tmp.mp4 also ends in .mp4 — never evict an encode that is still running
 const isFinishedProxy = (file: string) => file.endsWith('.mp4') && !file.includes('.tmp.')
-
-/** Encodes already running, keyed by output path. Two callers asking for the
- *  same proxy at the same time must share one encode, not race each other:
- *  React StrictMode fires the requesting effect twice in development, and two
- *  ffmpeg processes writing one output produce a truncated file — which then
- *  looks like a valid cache entry and reaches the player as an unplayable
- *  video. Opening the dialog twice quickly does the same thing in production. */
-const inFlight = new Map<string, Promise<string>>()
 
 /** Build (or reuse) the proxy for one video. Returns its absolute path. */
 export const makeSyncProxy = (videoPath: string): Promise<string> => {
   const dir = getProxyDir()
-  const out = join(dir, `${keyFor(videoPath)}.mp4`)
+  const out = join(dir, `${cacheKey(videoPath, `${PROXY_SECONDS}x${PROXY_HEIGHT}`)}.mp4`)
   if (existsSync(out)) return Promise.resolve(out)
 
-  const running = inFlight.get(out)
-  if (running) return running
-
-  // Encode to a unique temp name and rename into place, so a run interrupted
-  // midway (app closed, machine slept) can never leave a truncated file that the
-  // existsSync above would then happily serve as a valid cached proxy.
-  const task = (async () => {
-    const tmp = `${out}.${randomBytes(6).toString('hex')}.tmp.mp4`
-    try {
-      await execFileAsync(getFFmpegPath(), [
-        '-y',
-        '-t', String(PROXY_SECONDS),
-        '-i', videoPath,
-        '-vf', `scale=-2:${PROXY_HEIGHT}`,
-        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30',
-        '-c:a', 'aac', '-b:a', '64k',
-        '-movflags', '+faststart',
-        tmp,
-      ], { maxBuffer: 10 * 1024 * 1024 })
-      renameSync(tmp, out)
-    } catch (e) {
-      try { if (existsSync(tmp)) unlinkSync(tmp) } catch { /* skip */ }
-      throw e
-    }
+  return singleFlight(out, async () => {
+    await writeAtomic(out, tmp => execFileAsync(getFFmpegPath(), [
+      '-y',
+      '-t', String(PROXY_SECONDS),
+      '-i', videoPath,
+      '-vf', `scale=-2:${PROXY_HEIGHT}`,
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '30',
+      '-c:a', 'aac', '-b:a', '64k',
+      '-movflags', '+faststart',
+      tmp,
+    ], { maxBuffer: 10 * 1024 * 1024 }).then(() => undefined), '.mp4')
     evictOldest(dir, MAX_PROXIES, isFinishedProxy)
     return out
-  })()
-
-  inFlight.set(out, task)
-  return task.finally(() => inFlight.delete(out))
+  })
 }

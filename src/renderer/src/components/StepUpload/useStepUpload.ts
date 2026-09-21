@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import type { ElectronFile, PipPosition } from '@/types'
-import { basename } from '@lib'
+import type { ElectronFile, PipPosition, MaxPauseSec } from '@/types'
+import { basename, DEFAULT_MAX_PAUSE_SEC } from '@lib'
 
 export interface UseStepUploadReturn {
   // Main video
@@ -25,6 +25,9 @@ export interface UseStepUploadReturn {
   // PiP overlay position (null = two separate files)
   pipPosition: PipPosition | null
   setPipPosition: (v: PipPosition | null) => void
+  // Longest silence the finished cut may keep (0 = leave pauses alone)
+  maxPauseSec: MaxPauseSec
+  setMaxPauseSec: (v: MaxPauseSec) => void
   // FFmpeg
   ffmpegOk: boolean | null
 }
@@ -36,6 +39,7 @@ export const useStepUpload = (): UseStepUploadReturn => {
   const [webcamDragging, setWebcamDragging] = useState(false)
   const [syncOffsetSec, setSyncOffsetSec] = useState(0)
   const [pipPosition, setPipPosition] = useState<PipPosition | null>(null)
+  const [maxPauseSec, setMaxPauseSec] = useState<MaxPauseSec>(DEFAULT_MAX_PAUSE_SEC)
   const [ffmpegOk, setFfmpegOk] = useState<boolean | null>(null)
 
   useEffect(() => { window.api.checkFFmpeg().then(setFfmpegOk) }, [])
@@ -77,6 +81,7 @@ export const useStepUpload = (): UseStepUploadReturn => {
     handleWebcamPick, handleWebcamDragOver, handleWebcamDragLeave, handleWebcamDrop,
     handleWebcamRemove, setSyncOffsetSec,
     pipPosition, setPipPosition,
+    maxPauseSec, setMaxPauseSec,
     ffmpegOk,
   }
 }

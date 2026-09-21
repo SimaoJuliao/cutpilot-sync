@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   Transcript,
-  BuildPromptOptions,
+  PlanEdlOptions,
   EdlRange,
   RenderOptions,
   RenderResult,
@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   // ── Video pipeline ──────────────────────────────────────────────────────────
   selectVideo: (): Promise<string | null> => ipcRenderer.invoke('select-video'),
   transcribe: (videoPath: string): Promise<Transcript> => ipcRenderer.invoke('transcribe', videoPath),
-  callClaude: (opts: BuildPromptOptions): Promise<EdlRange[]> => ipcRenderer.invoke('call-claude', opts),
+  callClaude: (opts: PlanEdlOptions): Promise<EdlRange[]> => ipcRenderer.invoke('call-claude', opts),
   render: (opts: RenderOptions): Promise<RenderResult> => ipcRenderer.invoke('render', opts),
   openFolder: (path: string): Promise<void> => ipcRenderer.invoke('open-folder', path),
   checkFFmpeg: (): Promise<boolean> => ipcRenderer.invoke('check-ffmpeg'),
