@@ -13,7 +13,8 @@
  * caches before, which is exactly how the original bug survived a rename.
  */
 
-import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync, renameSync } from 'fs'
+import { createHash, randomBytes } from 'crypto'
 import { join } from 'path'
 import { app } from 'electron'
 
@@ -22,6 +23,53 @@ export const getCacheDir = (name: string): string => {
   const dir = join(app.getPath('userData'), 'cps-cache', name)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return dir
+}
+
+/**
+ * Cache key for a derivative of `videoPath`, built from the file's identity plus
+ * whatever parameters produced the derivative.
+ *
+ * Size and mtime bust the key whenever the source changes, so a stale result is
+ * never served. `params` busts it whenever WE change how the derivative is made
+ * — a different sample rate, proxy size, or ASR request — which is why every
+ * caller must pass one.
+ */
+export const cacheKey = (videoPath: string, params: string): string => {
+  const st = statSync(videoPath)
+  return createHash('sha256')
+    .update(`${videoPath}:${st.size}:${st.mtimeMs}:${params}`)
+    .digest('hex')
+    .slice(0, 16)
+}
+
+/**
+ * Write `file` via a uniquely-named temp file, so `file` only ever exists
+ * complete.
+ *
+ * A run interrupted midway — app closed, machine slept — must leave debris, not
+ * a truncated file that `existsSync` would then happily serve as a valid cache
+ * entry forever. The temp name is random rather than derived from the pid
+ * because two producers in one process share a pid. `suffix` is for callers
+ * whose eviction filter matches on extension; the temp name keeps it so the
+ * filter can exclude writes still in progress.
+ *
+ * `write` is handed the temp path and must create it. Throws if it cannot be
+ * put in place, having removed the temp file — callers for whom caching is
+ * merely an optimisation should catch that and carry on.
+ */
+export const writeAtomic = async (
+  file: string,
+  write: (tmpPath: string) => Promise<void> | void,
+  suffix = '',
+): Promise<void> => {
+  const tmp = `${file}.${randomBytes(6).toString('hex')}.tmp${suffix}`
+  try {
+    await write(tmp)
+    renameSync(tmp, file)
+  } catch (e) {
+    try { if (existsSync(tmp)) unlinkSync(tmp) } catch { /* skip */ }
+    throw e
+  }
 }
 
 /**

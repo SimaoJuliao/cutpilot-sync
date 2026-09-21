@@ -3,19 +3,18 @@
  * Caches Groq Whisper results on disk so the same video is never
  * transcribed twice — saves time, API quota, and avoids rate-limit errors.
  *
- * Cache key = SHA-256( videoPath + fileSize + mtimeMs ).slice(0, 16)
- * Any change to the file (size or modification date) busts the cache
- * automatically, so stale results are never returned.
+ * Keyed by `cacheKey` in diskCache.ts, so any change to the file — or to
+ * PARAMS_VERSION below — busts the cache automatically and stale results are
+ * never returned.
  *
  * Storage: <userData>/cps-cache/transcriptions/<key>.json — see diskCache.ts
  * for why that root is not `<userData>/cache`.
  */
 
-import { createHash } from 'crypto'
-import { statSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import type { Transcript } from '../../../src/renderer/src/types/electron'
-import { getCacheDir, evictOldest } from './diskCache'
+import { getCacheDir, evictOldest, cacheKey } from './diskCache'
 
 const MAX_ENTRIES = 50   // keep at most 50 cached transcriptions
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000  // 30 days
@@ -26,11 +25,7 @@ const cacheDir = () => getCacheDir('transcriptions')
 // (transcribed with the old params) are invalidated automatically.
 const PARAMS_VERSION = 'detect-gapfill-keyterm-v8'
 
-const getCacheKey = (videoPath: string): string => {
-  const stat = statSync(videoPath)
-  const raw = `${videoPath}:${stat.size}:${stat.mtimeMs}:${PARAMS_VERSION}`
-  return createHash('sha256').update(raw).digest('hex').slice(0, 16)
-}
+const getCacheKey = (videoPath: string): string => cacheKey(videoPath, PARAMS_VERSION)
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
