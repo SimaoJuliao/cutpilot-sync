@@ -101,10 +101,10 @@ const App = () => {
             CUTPILOT
           </span>
           <h1 className="font-display text-[40px] leading-[0.9] text-foreground uppercase mb-4">
-            {strings.app.offlineTitle}
+            {connectionError === 'offline' ? strings.app.offlineTitle : strings.app.unreachableTitle}
           </h1>
           <p role="alert" className="font-mono text-[11px] leading-relaxed text-muted-foreground/70 mb-8">
-            {strings.app.offlineDesc}
+            {connectionError === 'offline' ? strings.app.offlineDesc : strings.app.unreachableDesc}
           </p>
           <button
             type="button"

@@ -5,8 +5,12 @@ export const pt = {
     accountBtnLabel: 'Definições da conta',
     closeLabel: 'Fechar definições',
     loadingLabel: 'A carregar',
+    // Two different failures that used to share one message. Blaming the user's
+    // internet when the internet is fine sends them hunting for the wrong thing.
     offlineTitle: 'SEM LIGAÇÃO.',
-    offlineDesc: 'Não foi possível contactar o servidor de autenticação. Verifica a tua ligação à internet e tenta novamente.',
+    offlineDesc: 'Estás sem internet. Verifica a tua rede e tenta novamente.',
+    unreachableTitle: 'SERVIDOR INDISPONÍVEL.',
+    unreachableDesc: 'A tua ligação está boa, mas o servidor de autenticação não respondeu. Pode estar em baixo — tenta novamente daqui a pouco.',
     offlineRetryBtn: 'Tentar novamente',
   },
 
