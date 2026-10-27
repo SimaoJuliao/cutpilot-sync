@@ -319,3 +319,15 @@ FFmpeg executable under the **GPLv3**, whose corresponding source is linked in
 by the terms above.
 
 Licensing enquiries: cutpilotsync@gmail.com
+
+### End-user terms (draft — not yet in force)
+
+A consumer-facing subscription agreement and privacy policy are drafted in
+Portuguese, the language of the app's UI:
+
+- [TERMOS.md](TERMOS.md) — terms and conditions
+- [PRIVACIDADE.md](PRIVACIDADE.md) — privacy policy (GDPR)
+
+**Neither is in force yet.** Both contain unfilled fields and assume app
+behaviour that is not implemented. [TERMOS-PENDENTES.md](TERMOS-PENDENTES.md)
+lists what must be done before charging anyone.
