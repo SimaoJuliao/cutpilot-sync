@@ -23,7 +23,7 @@ Optionally add a **webcam recording** — the app cuts both files at the exact s
 | Fonts | Bebas Neue (display) + JetBrains Mono (mono) |
 | Transcription | Deepgram Nova-3 — word-level timestamps, speaker diarisation |
 | AI editing | Anthropic Claude (`claude-sonnet-4-5`) |
-| Rendering | FFmpeg (installed locally by the user) |
+| Rendering | FFmpeg — bundled with the app (`ffmpeg-static`, GPLv3; see [third-party notices](THIRD-PARTY-NOTICES.md)) |
 | Auth | Supabase Auth (email + password) |
 | Auto-update | electron-updater + GitHub Releases |
 | CI/CD | GitHub Actions — builds Windows, macOS and Linux in parallel |
@@ -79,7 +79,11 @@ src/
 ### Prerequisites
 
 - [Node.js](https://nodejs.org) 18+
-- [FFmpeg](https://ffmpeg.org/download.html) installed and on PATH
+
+FFmpeg does not need to be installed: `npm install` pulls in `ffmpeg-static`,
+and the binary is bundled into the packaged app (`asarUnpack`). A system-wide
+FFmpeg on PATH is used only as a fallback on platforms the package does not
+support.
 
 ### 1. Install dependencies
 
@@ -293,7 +297,37 @@ App starts
 - [ ] Full auth flow tested: signup → confirm email → login → reset password → change password → logout → delete account
 
 ### App
-- [ ] FFmpeg available on the target machine
+- [ ] Bundled FFmpeg present in the installed app (`resources/app.asar.unpacked/node_modules/ffmpeg-static/`)
 - [ ] Tested on a clean machine (no dev dependencies)
 - [ ] `cutpilotsync://` deep link works in the production build
 - [ ] Release is published (not Draft) on GitHub Releases — automatic with `releaseType: "release"` in `package.json`
+
+---
+
+## Licence
+
+CutPilot Sync is **proprietary software** — copyright © 2026 Simão Julião, all
+rights reserved. See [LICENSE](LICENSE).
+
+This repository is public because the auto-updater serves releases from GitHub
+and anonymous installer downloads require it — not as an invitation to reuse the
+code. No permission is granted to copy, modify or redistribute it.
+
+The app bundles third-party components under their own licences, including an
+FFmpeg executable under the **GPLv3**, whose corresponding source is linked in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Those licences are unaffected
+by the terms above.
+
+Licensing enquiries: cutpilotsync@gmail.com
+
+### End-user terms (draft — not yet in force)
+
+A consumer-facing subscription agreement and privacy policy are drafted in
+Portuguese, the language of the app's UI:
+
+- [TERMOS.md](TERMOS.md) — terms and conditions
+- [PRIVACIDADE.md](PRIVACIDADE.md) — privacy policy (GDPR)
+
+**Neither is in force yet.** Both contain unfilled fields and assume app
+behaviour that is not implemented. [TERMOS-PENDENTES.md](TERMOS-PENDENTES.md)
+lists what must be done before charging anyone.

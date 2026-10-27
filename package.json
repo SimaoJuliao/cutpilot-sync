@@ -2,6 +2,8 @@
   "name": "cutpilot-sync",
   "version": "1.4.0",
   "description": "CutPilot Sync — AI-powered video editor: transcribe, cut, render",
+  "license": "UNLICENSED",
+  "private": true,
   "author": {
     "name": "Simão Julião",
     "email": "cutpilotsync@gmail.com"
