@@ -1,0 +1,75 @@
+CutPilot Sync — Proprietary Software License
+Copyright (c) 2026 Simão Julião. All rights reserved.
+
+
+1. OWNERSHIP
+
+   CutPilot Sync (the "Software"), including its source code, design,
+   documentation and all associated materials authored by the copyright
+   holder, is proprietary and confidential. It is made publicly readable on
+   GitHub for distribution and automatic-update purposes only. Publication
+   does not place the Software in the public domain, nor does it grant any
+   licence to it.
+
+
+2. NO LICENCE GRANTED
+
+   No permission is granted to any person to use, copy, modify, merge,
+   publish, distribute, sublicense, sell, or create derivative works of the
+   Software, in whole or in part, by any means, except where the copyright
+   holder has granted that permission in writing.
+
+   This includes, without limitation: redistributing the Software or its
+   builds; incorporating any part of it into another product; and training
+   machine-learning models on its source code.
+
+
+3. PERMITTED USE OF OFFICIAL BUILDS
+
+   Persons to whom the copyright holder supplies an official build, or who
+   obtain one from an official release channel, may install and run it for
+   their own purposes. That permission covers running the Software only, and
+   may be withdrawn. It does not extend to redistribution, reverse
+   engineering, or any of the acts reserved in clause 2.
+
+
+4. THIRD-PARTY COMPONENTS
+
+   This clause prevails over clauses 1 to 3 for the components it covers.
+
+   The Software is distributed together with third-party components that are
+   NOT owned by the copyright holder and are NOT covered by this licence.
+   Each such component remains governed solely by its own licence, and
+   nothing in this licence restricts, or purports to restrict, any right
+   granted by those licences.
+
+   In particular, the official builds bundle an FFmpeg executable licensed
+   under the GNU General Public License, version 3 or later. It is included
+   as a separate, unmodified program that the Software invokes as an external
+   process; it is not linked into the Software. Recipients have the full
+   rights granted by the GPL in respect of that executable, including the
+   right to obtain its corresponding source code.
+
+   See THIRD-PARTY-NOTICES.md for the full list, the applicable licences, and
+   where to obtain the corresponding sources.
+
+
+5. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+   THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+   OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+   The Software sends audio to third-party services (Deepgram, Anthropic) and
+   authenticates through Supabase. Those services are governed by their own
+   terms, and the copyright holder is not responsible for them.
+
+
+6. CONTACT
+
+   For licensing enquiries, including permission to use the Software beyond
+   clause 3: cutpilotsync@gmail.com
